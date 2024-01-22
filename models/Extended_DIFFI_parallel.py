@@ -163,6 +163,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         """
 
         # this takes a segment of the forest, which is a list of trees
+        @staticmethod
         def forest_worker(forest):
             partial_sum_importances_matrix = np.zeros_like(X, dtype="float64")
             partial_sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
@@ -240,8 +241,6 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 # the division can be done at the end
                 sum_importances_matrix /= self.n_trees
                 sum_normal_vectors_matrix /= self.n_trees
-
-            del forest_worker
 
             if overwrite:
                 self.sum_importances_matrix = sum_importances_matrix / self.n_trees
