@@ -104,7 +104,7 @@ class Extended_DIFFI_tree(ExtendedTree):
         return np.array(Importances_list), np.array(Normal_vectors_list)
 
 
-class Extended_DIFFI_original(ExtendedIF):
+class Extended_DIFFI_parallel(ExtendedIF):
     def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None

@@ -107,7 +107,7 @@ class MatFileDataset:
         self.X = None
         self.y = None
         self.shape = None
-        self.datasets = data
+        #self.datasets = data
 
     def load(self, name: str):
         self.name = name
