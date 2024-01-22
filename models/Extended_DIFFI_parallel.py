@@ -104,8 +104,27 @@ class Extended_DIFFI_tree(ExtendedTree):
         return np.array(Importances_list), np.array(Normal_vectors_list)
 
 
+def forest_worker(args):
+    """
+    This takes a segment of the forest, which is a list of trees.
+    Given a dataset X and the depth_based option, return a function that
+    computes the sum of the importance scores and the sum of the normal vectors.
+    """
+    forest, X, depth_based = args
+
+    partial_sum_importances_matrix = np.zeros_like(X, dtype="float64")
+    partial_sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
+
+    for tree in forest:
+        importances_matrix, normal_vectors_matrix = tree.make_importance(X, depth_based)
+        partial_sum_importances_matrix += importances_matrix
+        partial_sum_normal_vectors_matrix += normal_vectors_matrix
+
+    return partial_sum_importances_matrix, partial_sum_normal_vectors_matrix
+
+
 class Extended_DIFFI_parallel(ExtendedIF):
-    def __init__(self,*args, **kwarg):
+    def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
@@ -155,30 +174,6 @@ class Extended_DIFFI_parallel(ExtendedIF):
 
         self.num_processes = num_processes
 
-    @staticmethod
-    def get_forest_worker(X, depth_based):
-        """
-        Given a dataset X and the depth_based option, return a function that
-        computes the sum of the importance scores and the sum of the normal vectors.
-        """
-
-        # this takes a segment of the forest, which is a list of trees
-        @staticmethod
-        def forest_worker(forest):
-            partial_sum_importances_matrix = np.zeros_like(X, dtype="float64")
-            partial_sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
-
-            for tree in forest:
-                importances_matrix, normal_vectors_matrix = tree.make_importance(
-                    X, depth_based
-                )
-                partial_sum_importances_matrix += importances_matrix
-                partial_sum_normal_vectors_matrix += normal_vectors_matrix
-
-            return partial_sum_importances_matrix, partial_sum_normal_vectors_matrix
-
-        return forest_worker
-
     def Importances(self, X, calculate, overwrite, depth_based):
         """
         Obtain the sum of the Importance scores computed along all the Isolation Trees, with the make_importance
@@ -214,18 +209,15 @@ class Extended_DIFFI_parallel(ExtendedIF):
 
             # multicore processing
             # split the input vector into segments
-            num_processes = 2  # number of cores
-            segment_size = len(X) // num_processes
+            segment_size = len(X) // self.num_processes
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
             segments = [
-                    self.forest[i : i + segment_size]
-                    for i in range(0, len(self.forest), segment_size)
-                ]
+                (self.forest[i : i + segment_size], X, depth_based)
+                for i in range(0, len(self.forest), segment_size)
+            ]
 
-            forest_worker = self.get_forest_worker(X, depth_based)
-
-            with Pool(processes=num_processes) as pool:
+            with Pool(processes=self.num_processes) as pool:
                 # the result list of tuples which are the outputs of the make_importance function
                 results = pool.map(forest_worker, segments)
 
@@ -241,8 +233,6 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 # the division can be done at the end
                 sum_importances_matrix /= self.n_trees
                 sum_normal_vectors_matrix /= self.n_trees
-
-            del forest_worker
 
             if overwrite:
                 self.sum_importances_matrix = sum_importances_matrix / self.n_trees
