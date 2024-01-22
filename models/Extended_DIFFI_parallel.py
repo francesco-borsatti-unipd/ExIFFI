@@ -105,12 +105,12 @@ class Extended_DIFFI_tree(ExtendedTree):
 
 
 class Extended_DIFFI_parallel(ExtendedIF):
-    def __init__(self, num_processes=1, *args, **kwarg):
+    def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus = kwarg.get("plus")
-        self.num_processes = num_processes
+        self.num_processes = 1
 
     def fit(self, X):
         """
@@ -217,12 +217,10 @@ class Extended_DIFFI_parallel(ExtendedIF):
             segment_size = len(X) // num_processes
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
-            segments = np.array(
-                [
+            segments = [
                     self.forest[i : i + segment_size]
                     for i in range(0, len(self.forest), segment_size)
                 ]
-            )
 
             forest_worker = self.get_forest_worker(X, depth_based)
 
