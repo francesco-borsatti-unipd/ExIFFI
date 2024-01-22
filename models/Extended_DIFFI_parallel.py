@@ -226,13 +226,8 @@ class Extended_DIFFI_parallel(ExtendedIF):
         of the Global and Local Feature Importance.
         """
 
-<<<<<<< HEAD
         #if num_processes > cpu_count():
         #    raise Exception("num_processes cannot be greater than cpu_count()")
-=======
-        # if num_processes > cpu_count():
-        #     raise Exception("num_processes cannot be greater than cpu_count()")
->>>>>>> 0fa4b01854cc28bb3079c459c466189a6a2ba895
 
         self.num_processes = num_processes
 
