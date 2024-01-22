@@ -105,12 +105,12 @@ class Extended_DIFFI_tree(ExtendedTree):
 
 
 class Extended_DIFFI_parallel(ExtendedIF):
-    def __init__(self, *args, **kwarg):
+    def __init__(self, num_processes=1, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus = kwarg.get("plus")
-        self.num_processes = 1
+        self.num_processes = num_processes
 
     def fit(self, X):
         """
