@@ -1,6 +1,7 @@
 import sys
-from multiprocessing import Pool, cpu_count
+import logging
 from functools import partial
+from multiprocessing import Pool, cpu_count
 
 
 sys.path.append("./models")
@@ -118,7 +119,7 @@ class Extended_DIFFI_tree(ExtendedTree):
             left_son=self.left_son,
             right_son=self.right_son,
         )
-        
+
         # split the input vector num_processes
         num_processes = 1  ####################################################
         segment_size = len(X) // num_processes
@@ -148,7 +149,8 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus = kwarg.get("plus")
-        self.num_processes = 1
+        self.num_processes_importances = 1
+        self.num_processes_fit = 1
 
     @staticmethod
     def make_tree_worker(forest_segment, X, subsample_size):
@@ -161,7 +163,6 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 X_sub = X[indx, :]
                 x.make_tree(X_sub, 0, 0)
                 # subsets.append(indx)
-        # return subsets
         return forest_segment
 
     def fit(self, X):
@@ -187,20 +188,18 @@ class Extended_DIFFI_parallel(ExtendedIF):
             for i in range(self.n_trees)
         ]
 
-        num_processes = 8
-
-        partial_make_tree_worker = partial(
-            self.make_tree_worker, X=X, subsample_size=self.subsample_size
-        )
-
-        if num_processes > 1:
+        if self.num_processes_fit > 1:
+            # --- Parallel execution ---
+            partial_make_tree_worker = partial(
+                self.make_tree_worker, X=X, subsample_size=self.subsample_size
+            )
             # split the input vector into segments
-            segment_size = len(self.forest) // num_processes
+            segment_size = len(self.forest) // self.num_processes_fit
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
             ]
-            with Pool(processes=num_processes) as pool:
+            with Pool(processes=self.num_processes_fit) as pool:
                 results = pool.map(partial_make_tree_worker, segments)
 
                 self.forest = []
@@ -208,6 +207,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
                     self.forest.extend(result)
 
         else:
+            # --- Serial execution ---
             self.subsets = []
             for x in self.forest:
                 if not self.subsample_size or self.subsample_size > X.shape[0]:
@@ -220,16 +220,23 @@ class Extended_DIFFI_parallel(ExtendedIF):
                     x.make_tree(X_sub, 0, 0)
                     self.subsets.append(indx)
 
-    def set_num_processes(self, num_processes):
+    def set_num_processes(self, num_processes_importances, num_processes_fit):
         """
         Set the number of processes to be used in the parallel computation
         of the Global and Local Feature Importance.
         """
 
-        # if num_processes > cpu_count():
-        #     raise Exception("num_processes cannot be greater than cpu_count()")
+        num_cpus = cpu_count()
+        max_num_cpus = max(num_processes_importances, num_processes_fit)
 
-        self.num_processes = num_processes
+        if num_processes_importances > max_num_cpus:
+            logging.warning(
+                "Setting num_processes > cpu_count() in Extended_DIFFI_parallel"
+                + f"\nRequested: {num_processes_importances} | Available: {num_cpus}"
+            )
+
+        self.num_processes_importances = num_processes_importances
+        self.num_processes_fit = num_processes_fit
 
     @staticmethod
     def forest_worker(forest, X, depth_based):
@@ -287,7 +294,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
 
             # multicore processing
             # split the input vector into segments
-            segment_size = len(X) // self.num_processes
+            segment_size = len(X) // self.num_processes_importances
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
             segments = [
@@ -295,8 +302,8 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 for i in range(0, len(self.forest), segment_size)
             ]
 
-            if self.num_processes > 1:
-                with Pool(processes=self.num_processes) as pool:
+            if self.num_processes_importances > 1:
+                with Pool(processes=self.num_processes_importances) as pool:
                     forest_worker_partial = partial(
                         self.forest_worker, X=X, depth_based=depth_based
                     )
