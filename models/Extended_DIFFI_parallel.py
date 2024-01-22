@@ -241,6 +241,8 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 sum_importances_matrix /= self.n_trees
                 sum_normal_vectors_matrix /= self.n_trees
 
+            del forest_worker
+
             if overwrite:
                 self.sum_importances_matrix = sum_importances_matrix / self.n_trees
                 self.sum_normal_vectors_matrix = (
