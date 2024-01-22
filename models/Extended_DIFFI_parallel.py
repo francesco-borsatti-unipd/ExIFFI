@@ -105,7 +105,7 @@ class Extended_DIFFI_tree(ExtendedTree):
 
 
 class Extended_DIFFI_parallel(ExtendedIF):
-    def __init__(self, *args, **kwarg):
+    def __init__(self,*args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
