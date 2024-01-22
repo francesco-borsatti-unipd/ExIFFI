@@ -217,12 +217,10 @@ class Extended_DIFFI_parallel(ExtendedIF):
             segment_size = len(X) // num_processes
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
-            segments = np.array(
-                [
+            segments = [
                     self.forest[i : i + segment_size]
                     for i in range(0, len(self.forest), segment_size)
                 ]
-            )
 
             forest_worker = self.get_forest_worker(X, depth_based)
 
