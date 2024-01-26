@@ -66,11 +66,11 @@ def parse_arguments():
     parser.add_argument(
         "--savedir", type=str, required=True, help="Save directory for the results"
     )
-    parser.add_argument("--parallel", action="store_true")
-    parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--n_runs", type=int, default=10)
-    parser.add_argument("--n_cores", type=int, default=2)
-    parser.add_argument("--num_trees", type=int, default=300)
+    parser.add_argument("--parallel", action="store_true",help="Boolean to switch between parallel and serial code")
+    parser.add_argument("--seed", type=int, default=None,help='Set seed for reproducibility')
+    parser.add_argument("--n_runs", type=int, default=10,help='Set numner of runs')
+    parser.add_argument("--n_cores", type=int, default=2,help='Set number of cores to use in parallel code')
+    parser.add_argument("--num_trees", type=int, default=300,help='Number of trees in ExIFFI')
     return parser.parse_args()
 
 
