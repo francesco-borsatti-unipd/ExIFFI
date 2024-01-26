@@ -101,7 +101,6 @@ def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=True):
         pwd = os.path.dirname(os.getcwd())
         start = time.time()
         imps = compute_imps(EDIFFI, X, X, 10, name, pwd, dim, f=6)
-        print(imps.shape)
         ex_imps["Execution " + str(i)] = imps
         end = time.time()
         ex_time.append(end - start)
