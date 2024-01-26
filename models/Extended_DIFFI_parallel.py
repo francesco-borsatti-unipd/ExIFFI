@@ -149,6 +149,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus = kwarg.get("plus")
+        self.seed=kwarg.get("seed")
         self.num_processes_importances = 1
         self.num_processes_fit = 1
 
@@ -184,7 +185,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
             self.max_depth = np.inf
 
         self.forest = [
-            Extended_DIFFI_tree(self.dims, self.min_sample, self.max_depth, self.plus)
+            Extended_DIFFI_tree(self.dims, self.min_sample, self.max_depth, self.plus,self.seed)
             for i in range(self.n_trees)
         ]
 

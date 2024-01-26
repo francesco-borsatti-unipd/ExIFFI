@@ -31,7 +31,7 @@ class ExtendedIF():
             This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model 
             will be used, if plus=1 than the EIF_plus model will be considered.      
     """
-    def __init__(self, n_trees, max_depth = None, min_sample = None, dims = None, subsample_size = None, plus=1):
+    def __init__(self, n_trees, max_depth = None, min_sample = None, dims = None, subsample_size = None, plus=1,seed=None):
         self.n_trees                    = n_trees
         self.max_depth                  = max_depth
         self.min_sample                 = min_sample
@@ -39,6 +39,7 @@ class ExtendedIF():
         self.subsample_size             = subsample_size
         self.forest                     = None
         self.plus                       = plus
+        self.seed                      = seed
 
     def fit(self,X):
         """
@@ -60,7 +61,7 @@ class ExtendedIF():
         if not self.max_depth:
             self.max_depth = np.inf
 
-        self.forest = [ExtendedTree(self.dims, self.min_sample, self.max_depth,self.plus) for i in range(self.n_trees)]
+        self.forest = [ExtendedTree(self.dims, self.min_sample, self.max_depth,self.plus,self.seed) for i in range(self.n_trees)]
         for x in self.forest:
             if not self.subsample_size:
                 x.make_tree(X,0,0)
@@ -180,7 +181,7 @@ class ExtendedIF():
     
 class ExtendedTree():
     
-    def __init__(self,dims,min_sample,max_depth,plus):
+    def __init__(self,dims,min_sample,max_depth,plus,seed=None):
         ''' 
         Implementation of Isolation Trees for the EIF/EIF_plus models 
         --------------------------------------------------------------------------------
@@ -205,6 +206,8 @@ class ExtendedTree():
         self.left_son               = [0]
         self.nodes                  = {}
         self.plus                   = plus
+        self.seed                   = seed
+        self.num_rand_calls         = 0
     
     def make_tree(self,X,id,depth):
         ''' 
@@ -229,7 +232,8 @@ class ExtendedTree():
         elif depth >= self.max_depth:
             self.nodes[id] = {"point":None,"normal":None,"numerosity":len(X)}
         else:
-            n = make_rand_vector(self.dims,X.shape[1])
+            n = make_rand_vector(self.dims,X.shape[1],self.seed,self.num_rand_calls)
+            self.num_rand_calls += 1
             
             val = X.dot(n)
             val_min = np.min(val)

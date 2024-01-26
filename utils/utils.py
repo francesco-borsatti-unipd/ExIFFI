@@ -15,7 +15,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
-def make_rand_vector(df,dimensions):
+def make_rand_vector(df,dimensions,seed=None,mem=None):
     """
     Random unitary vector in the unit ball with max number of dimensions
     --------------------------------------------------------------------------------
@@ -33,6 +33,10 @@ def make_rand_vector(df,dimensions):
     n:      random vector: the normal to the splitting hyperplane
         
     """
+    if seed is not None:
+        mem=0 if mem is None else mem
+        np.random.seed(seed+mem)
+
     if dimensions<df:
         raise ValueError("degree of freedom does not match with dataset dimensions")
     else:

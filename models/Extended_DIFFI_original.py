@@ -86,6 +86,7 @@ class Extended_DIFFI_original(ExtendedIF):
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus=kwarg.get('plus')
+        self.seed=kwarg.get("seed")
             
     def fit(self,X):
         """
@@ -105,7 +106,7 @@ class Extended_DIFFI_original(ExtendedIF):
         if not self.max_depth:
             self.max_depth = np.inf
             
-        self.forest = [Extended_DIFFI_tree(self.dims, self.min_sample, self.max_depth,self.plus) for i in range(self.n_trees)]
+        self.forest = [Extended_DIFFI_tree(self.dims, self.min_sample, self.max_depth,self.plus,self.seed) for i in range(self.n_trees)]
         self.subsets = []
         for x in self.forest:
             if not self.subsample_size or self.subsample_size>X.shape[0]:
