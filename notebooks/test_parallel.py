@@ -70,12 +70,20 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False,n_cores=2):
+def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False, n_cores=2):
+    # save arguments
+
+    args_to_avoid = ["X_train", "X_test", "X"]
+    args = dict()
+    for k, v in locals().items():
+        if k in args_to_avoid:
+            continue
+        args[k] = v
+
     ex_time = []
     ex_imps = {}
 
     for i in trange(n_runs):
-
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
@@ -92,7 +100,7 @@ def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False,n_cores
             EDIFFI = Extended_DIFFI_parallel(
                 7000, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
-            EDIFFI.set_num_processes(n_cores,n_cores)
+            EDIFFI.set_num_processes(n_cores, n_cores)
         else:
             EDIFFI = Extended_DIFFI_original(
                 7000, max_depth=100, subsample_size=256, plus=1, seed=seed
@@ -108,11 +116,18 @@ def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False,n_cores
 
     # print(ex_imps)
     time_stat = {"mean": np.mean(ex_time), "std": np.std(ex_time)}
-    filename="test_stat_parallel_7000.npz" if parallel else "test_stat_serial_7000.npz"
+    filename = (
+        "test_stat_parallel_7000.npz" if parallel else "test_stat_serial_7000.npz"
+    )
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
     filename = current_time + "_" + filename
-    np.savez(filename, execution_time_stat=time_stat, importances_matrix=ex_imps)
+    np.savez(
+        filename,
+        execution_time_stat=time_stat,
+        importances_matrix=ex_imps,
+        arguments=args,
+    )
 
 
 if __name__ == "__main__":
@@ -132,5 +147,7 @@ if __name__ == "__main__":
     # print(f'X_test: {X_test}')
     # print(f'n_runs: {args.n_runs}')
     # print(f'seed: {args.seed}')
-    print(f'parallel: {args.parallel}')
-    test_exiffi(X_train, X_test, X_test, args.n_runs, args.seed, args.parallel,args.n_cores)
+    print(f"parallel: {args.parallel}")
+    test_exiffi(
+        X_train, X_test, X_test, args.n_runs, args.seed, args.parallel, args.n_cores
+    )
