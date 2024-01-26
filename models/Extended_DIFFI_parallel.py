@@ -226,16 +226,6 @@ class Extended_DIFFI_parallel(ExtendedIF):
         Set the number of processes to be used in the parallel computation
         of the Global and Local Feature Importance.
         """
-
-        #if num_processes > cpu_count():
-        #    raise Exception("num_processes cannot be greater than cpu_count()")
-
-        if num_processes_importances > max_num_cpus:
-            logging.warning(
-                "Setting num_processes > cpu_count() in Extended_DIFFI_parallel"
-                + f"\nRequested: {num_processes_importances} | Available: {num_cpus}"
-            )
-
         self.num_processes_importances = num_processes_importances
         self.num_processes_fit = num_processes_fit
 
