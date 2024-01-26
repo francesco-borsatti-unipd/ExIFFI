@@ -63,17 +63,29 @@ def compute_imps(model, X_train, X_test, n_runs, name, pwd, dim, f=6):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     # inputs and outputs
+    parser.add_argument(
+        "--savedir", type=str, required=True, help="Save directory for the results"
+    )
     parser.add_argument("--parallel", action="store_true")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--n_runs", type=int, default=10)
     parser.add_argument("--n_cores", type=int, default=2)
+    parser.add_argument("--num_trees", type=int, default=300)
     return parser.parse_args()
 
 
-def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False, n_cores=2):
-    # save arguments
-
-    args_to_avoid = ["X_train", "X_test", "X"]
+def test_exiffi(
+    X_train,
+    X_test,
+    X,
+    savedir,
+    n_runs=10,
+    seed=None,
+    parallel=False,
+    n_cores=2,
+    num_trees=300,
+):
+    args_to_avoid = ["X_train", "X_test", "X", "savedir"]
     args = dict()
     for k, v in locals().items():
         if k in args_to_avoid:
@@ -98,12 +110,12 @@ def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False, n_core
 
         if parallel:
             EDIFFI = Extended_DIFFI_parallel(
-                7000, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=num_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
             EDIFFI.set_num_processes(n_cores, n_cores)
         else:
             EDIFFI = Extended_DIFFI_original(
-                7000, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=num_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
         dim = X.shape[1]
@@ -116,14 +128,18 @@ def test_exiffi(X_train, X_test, X, n_runs=10, seed=None, parallel=False, n_core
 
     # print(ex_imps)
     time_stat = {"mean": np.mean(ex_time), "std": np.std(ex_time)}
-    filename = (
-        "test_stat_parallel_7000.npz" if parallel else "test_stat_serial_7000.npz"
-    )
+    filename = "test_stat_parallel.npz" if parallel else "test_stat_serial.npz"
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
     filename = current_time + "_" + filename
+
+    # if dir does not exist, create it
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
+    filepath = os.path.join(savedir, filename)
+
     np.savez(
-        filename,
+        filepath,
         execution_time_stat=time_stat,
         importances_matrix=ex_imps,
         arguments=args,
@@ -149,5 +165,13 @@ if __name__ == "__main__":
     # print(f'seed: {args.seed}')
     print(f"parallel: {args.parallel}")
     test_exiffi(
-        X_train, X_test, X_test, args.n_runs, args.seed, args.parallel, args.n_cores
+        X_train=X_train,
+        X_test=X_test,
+        X=X_test,
+        savedir=args.savedir,
+        n_runs=args.n_runs,
+        seed=args.seed,
+        parallel=args.parallel,
+        n_cores=args.n_cores,
+        num_trees=args.num_trees,
     )
