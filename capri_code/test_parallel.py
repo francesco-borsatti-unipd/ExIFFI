@@ -150,7 +150,13 @@ def parse_arguments():
     parser.add_argument(
         "--num_trees", type=int, default=300, help="Number of trees in ExIFFI"
     )
-    # parser.add_argument("--name", type=str, default='',help='Name of dataset')
+    parser.add_argument(
+        "--dataset_names",
+        nargs="+",
+        type=str,
+        default=[],
+        help="List of names of datasets to test ExIFFI on",
+    )
     return parser.parse_args()
 
 
@@ -238,7 +244,11 @@ if __name__ == "__main__":
     print(f"Parallel: {args.parallel}")
     print("#" * 60)
 
-    dataset_names = sorted(dataset_names)
+    if len(args.dataset_names) > 0:
+        dataset_names = args.dataset_names
+    else:
+        dataset_names = sorted(dataset_names)
+        
     print("dataset_names", dataset_names)
 
     for name in dataset_names:
