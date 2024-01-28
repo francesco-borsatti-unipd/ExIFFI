@@ -12,23 +12,22 @@ def load_stats(results_dirpath):
     """
 
     file_list = glob(os.path.join(results_dirpath, "*.npz"))
-    stats = [np.load(path, allow_pickle=True) for path in file_list]
-    stats = {data["arguments"].tolist()["name"]: dict(data) for data in stats}
+    stats = [dict(np.load(path, allow_pickle=True)) for path in file_list]
 
     new_stats = []
-    for _, value in stats.items():
+    for res in stats:
         tmp_dict = {}
-        for k, v in value.items():
+        for k, v in res.items():
             if k in ["arguments", "execution_time_stat"]:
                 continue
             tmp_dict[k] = v
 
-        args = value["arguments"].tolist()
+        args = res["arguments"].tolist()
 
         for k, v in args.items():
             tmp_dict[k] = v
 
-        execution_time_stat = value["execution_time_stat"].tolist()
+        execution_time_stat = res["execution_time_stat"].tolist()
 
         for k, v in execution_time_stat.items():
             tmp_dict[k + "_exec_time"] = v
@@ -40,8 +39,5 @@ def load_stats(results_dirpath):
 
 def display_stats(df):
     df = df.drop(columns=["importances_matrix"], inplace=False)
-
-    # set "name" as the index
-    df.set_index("name", inplace=True)
 
     display(df)
