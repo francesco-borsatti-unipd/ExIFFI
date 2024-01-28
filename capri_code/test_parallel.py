@@ -171,7 +171,7 @@ def test_exiffi(
     num_trees=300,
     name="",
 ):
-    args_to_avoid = ["X_train", "X_test", "savedir"]
+    args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
     for k, v in locals().items():
         if k in args_to_avoid:
