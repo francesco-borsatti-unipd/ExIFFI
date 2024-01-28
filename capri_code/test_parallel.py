@@ -35,12 +35,9 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 
 def drop_duplicates(X, y):
-
-def drop_duplicates(X, y):
     """
     Drop duplicate rows from a dataset
     --------------------------------------------------------------------------------
-
 
     Parameters
     ----------
@@ -52,13 +49,8 @@ def drop_duplicates(X, y):
     Returns
     -------
     X,y:      Updated dataset and labels after the duplicates removal
-
-
     """
-    S = np.c_[X, y]
-    S = pd.DataFrame(S).drop_duplicates().to_numpy()
-    X, y = S[:, :-1], S[:, -1]
-    return X, y
+
     S = np.c_[X, y]
     S = pd.DataFrame(S).drop_duplicates().to_numpy()
     X, y = S[:, :-1], S[:, -1]
@@ -68,12 +60,7 @@ def drop_duplicates(X, y):
 def load_data(path):
     data = loadmat(path)
     X, y = data["X"], data["y"]
-    data = loadmat(path)
-    X, y = data["X"], data["y"]
     y = np.hstack(y)
-    X, y = drop_duplicates(X, y)
-    return X, y
-
     X, y = drop_duplicates(X, y)
     return X, y
 
@@ -81,9 +68,7 @@ def load_data(path):
 def load_data_csv(path):
     """
     Upload a dataset from a .csv file. This function was used for the Diabetes and Moodify datasets.
-    Upload a dataset from a .csv file. This function was used for the Diabetes and Moodify datasets.
     --------------------------------------------------------------------------------
-
 
     Parameters
     ----------
@@ -95,9 +80,8 @@ def load_data_csv(path):
     Returns
     -------
     X,y:      X contains the dataset input features as a pd.DataFrame while y contains the dataset's labels as a np.array
-
-
     """
+
     data = pd.read_csv(path, index_col=0)
     if "Unnamed: 0" in data.columns:
         data = data.drop(columns=["Unnamed: 0"])
@@ -129,7 +113,6 @@ def pre_process(path):
     return X_train, X_test
 
 
-def compute_imps(model, X_train, X_test, n_runs):
 def compute_imps(model, X_train, X_test, n_runs):
     # X_test=np.r_[X_train,X_test]
 
@@ -168,25 +151,6 @@ def parse_arguments():
         "--num_trees", type=int, default=300, help="Number of trees in ExIFFI"
     )
     # parser.add_argument("--name", type=str, default='',help='Name of dataset')
-    parser.add_argument(
-        "--parallel",
-        action="store_true",
-        help="Boolean to switch between parallel and serial code",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None, help="Set seed for reproducibility"
-    )
-    parser.add_argument("--n_runs", type=int, default=10, help="Set numner of runs")
-    parser.add_argument(
-        "--n_cores",
-        type=int,
-        default=2,
-        help="Set number of cores to use in parallel code",
-    )
-    parser.add_argument(
-        "--num_trees", type=int, default=300, help="Number of trees in ExIFFI"
-    )
-    # parser.add_argument("--name", type=str, default='',help='Name of dataset')
     return parser.parse_args()
 
 
@@ -200,9 +164,7 @@ def test_exiffi(
     n_cores=2,
     num_trees=300,
     name="",
-    name="",
 ):
-    args_to_avoid = ["X_train", "X_test", "savedir"]
     args_to_avoid = ["X_train", "X_test", "savedir"]
     args = dict()
     for k, v in locals().items():
@@ -226,9 +188,7 @@ def test_exiffi(
                 n_trees=num_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
-
         start = time.time()
-        imps = compute_imps(EDIFFI, X_train, X_test, 10)
         imps = compute_imps(EDIFFI, X_train, X_test, 10)
         ex_imps["Execution " + str(i)] = imps
         end = time.time()
@@ -239,7 +199,6 @@ def test_exiffi(
     filename = "test_stat_parallel.npz" if parallel else "test_stat_serial.npz"
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
-    filename = current_time + "_" + name + "_" + filename
     filename = current_time + "_" + name + "_" + filename
 
     # if dir does not exist, create it
@@ -265,9 +224,7 @@ if __name__ == "__main__":
     csv_files_real = glob(os.path.join(path_real, "*.csv"))
     csv_file_names_real = {os.path.basename(x).split(".")[0]: x for x in csv_files_real}
     dataset_names = list(mat_file_names_real.keys()) + list(csv_file_names_real.keys())
-    dataset_names = list(mat_file_names_real.keys()) + list(csv_file_names_real.keys())
     mat_file_names_real.update(csv_file_names_real)
-    dataset_paths = mat_file_names_real.copy()
     dataset_paths = mat_file_names_real.copy()
 
     print("#" * 60)
@@ -280,7 +237,6 @@ if __name__ == "__main__":
     print(f"Seed: {args.seed}")
     print(f"Parallel: {args.parallel}")
     print("#" * 60)
-
 
     dataset_names = sorted(dataset_names)
     print("dataset_names", dataset_names)
@@ -299,6 +255,5 @@ if __name__ == "__main__":
             parallel=args.parallel,
             n_cores=args.n_cores,
             num_trees=args.num_trees,
-            name=name,
             name=name,
         )
