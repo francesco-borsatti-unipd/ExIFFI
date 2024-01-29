@@ -120,11 +120,14 @@ def compute_imps(model, X_train, X_test, n_runs):
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances"):
+        print('Start fit')
         model.fit(X_train)
+        print('End fit')
+        print('Start Global Importance')
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
         )
-
+        print('End Global Importance')
         mem_MB_lst.append(psutil.Process(os.getpid()).memory_info().rss / 1000**2)
 
     return imps, mem_MB_lst
@@ -189,21 +192,26 @@ def test_exiffi(
     ex_mem_MB = []
 
     for i in trange(n_runs, desc="Experiment"):
+        print('Execution 1')
         start = time.time()
 
         seed = None if seed is None else seed + i * n_trees
 
         if parallel:
+            print('Set up Extended_DIFFI_parallel')
             EDIFFI = Extended_DIFFI_parallel(
                 n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
             EDIFFI.set_num_processes(n_cores, n_cores)
+            print('Finished setting up Extended_DIFFI_parallel')
         else:
             EDIFFI = Extended_DIFFI_original(
                 n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
+        print('Call compute_imps')
         imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps)
+        print('End call compute_imps')
         ex_imps.append(imps)
         ex_mem_MB.append(mem_MB)
 

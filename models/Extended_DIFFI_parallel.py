@@ -371,7 +371,9 @@ class Extended_DIFFI_parallel(ExtendedIF):
         Array containig a Global Feature Importance Score for each feature in the dataset.
 
         """
+        print('Start computing Anomaly Score')
         anomaly_scores = self.Anomaly_Score(X)
+        print('End computing Anomaly Score')
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
         importances_matrix, normal_vectors_matrix = self.Importances(
