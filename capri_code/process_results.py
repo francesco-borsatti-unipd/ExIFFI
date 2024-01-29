@@ -14,7 +14,7 @@ def load_stats(results_dirpath):
     file_list = glob(os.path.join(results_dirpath, "*.npz"))
     stats = [dict(np.load(path, allow_pickle=True)) for path in file_list]
 
-    columns_to_merge = ["arguments", "execution_time_stat"]
+    columns_to_merge = ["arguments", "execution_time_stat", "memory_MB_stats"]
 
     new_stats = []
     for result in stats:
@@ -27,6 +27,8 @@ def load_stats(results_dirpath):
             tmp_dict[k] = v
 
         for dict_name in columns_to_merge:
+            if dict_name not in result:
+                continue
             dict_data = result[dict_name].tolist()
 
             for k, v in dict_data.items():
