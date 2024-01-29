@@ -116,18 +116,18 @@ def pre_process(path):
 
 def compute_imps(model, X_train, X_test, n_runs):
     X_test = np.r_[X_train, X_test]
+    mem_MB_lst = []
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
-    for i in tqdm(range(n_runs)):
+    for i in trange(n_runs, desc="Fit & Importances"):
         model.fit(X_train)
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
         )
 
-        
-        print("\n", psutil.Process(os.getpid()).memory_info().rss / 1024**2, "MiB")
+        mem_MB_lst.append(psutil.Process(os.getpid()).memory_info().rss / 1000**2)
 
-    return imps
+    return imps, mem_MB_lst
 
 
 def parse_arguments():
@@ -145,6 +145,12 @@ def parse_arguments():
         type=int,
         default=1,
         help="Set number of cores to use in parallel code. If 1 the code is serial, otherwise it is parallel",
+    )
+    parser.add_argument(
+        "--n_runs_imps",
+        type=int,
+        default=10,
+        help="Set number of runs for the importance computation",
     )
     parser.add_argument(
         "--n_trees", type=int, default=300, help="Number of trees in ExIFFI"
@@ -169,6 +175,7 @@ def test_exiffi(
     n_cores=2,
     n_trees=300,
     name="",
+    n_runs_imps = 10,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -178,10 +185,13 @@ def test_exiffi(
         args[k] = v
 
     ex_time = []
-    ex_imps = {}
+    ex_imps = []  # list of importance matrices for one execution
+    ex_mem_MB = []
 
-    for i in trange(n_runs):
-        seed = None if seed is None else seed + i
+    for i in trange(n_runs, desc="Experiment"):
+        start = time.time()
+
+        seed = None if seed is None else seed + i * n_trees
 
         if parallel:
             EDIFFI = Extended_DIFFI_parallel(
@@ -193,14 +203,19 @@ def test_exiffi(
                 n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
-        start = time.time()
-        imps = compute_imps(EDIFFI, X_train, X_test, 10)
-        ex_imps["Execution " + str(i)] = imps
-        end = time.time()
-        ex_time.append(end - start)
+        imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps)
+        ex_imps.append(imps)
+        ex_mem_MB.append(mem_MB)
+
+        ex_time.append(time.time() - start)
 
     # print(ex_imps)
-    time_stat = {"mean": np.mean(ex_time), "std": np.std(ex_time)}
+    time_stat = {"mean_time": np.mean(ex_time), "std_time": np.std(ex_time)}
+    mem_stat = {
+        "mean_MB": np.mean(ex_mem_MB),
+        "std_MB": np.std(ex_mem_MB),
+        "max_MB": np.max(ex_mem_MB),
+    }
     filename = "test_stat_parallel.npz" if parallel else "test_stat_serial.npz"
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
@@ -215,6 +230,7 @@ def test_exiffi(
         filepath,
         execution_time_stat=time_stat,
         importances_matrix=ex_imps,
+        memory_MB_stats=mem_stat,
         arguments=args,
     )
 
@@ -266,6 +282,7 @@ def main(args):
             n_cores=args.n_cores,
             n_trees=args.n_trees,
             name=name,
+            n_runs_imps=args.n_runs_imps,
         )
 
 

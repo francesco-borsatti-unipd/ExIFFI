@@ -149,7 +149,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.sum_importances_matrix = None
         self.sum_normal_vectors_matrix = None
         self.plus = kwarg.get("plus")
-        self.seed=kwarg.get("seed")
+        self.seed = kwarg.get("seed")
         self.num_processes_importances = 1
         self.num_processes_fit = 1
 
@@ -184,8 +184,22 @@ class Extended_DIFFI_parallel(ExtendedIF):
         if not self.max_depth:
             self.max_depth = np.inf
 
+        if hasattr(self, "num_fit_calls"):
+            self.num_fit_calls += 1
+        else:
+            # first call
+            self.num_fit_calls = 0
+
         self.forest = [
-            Extended_DIFFI_tree(self.dims, self.min_sample, self.max_depth, self.plus,self.seed)
+            Extended_DIFFI_tree(
+                dims=self.dims,
+                min_sample=self.min_sample,
+                max_depth=self.max_depth,
+                plus=self.plus,
+                seed=self.seed + i + self.num_fit_calls * self.n_trees * self.max_depth
+                if self.seed
+                else None,
+            )
             for i in range(self.n_trees)
         ]
 
@@ -194,8 +208,8 @@ class Extended_DIFFI_parallel(ExtendedIF):
             partial_make_tree_worker = partial(
                 self.make_tree_worker, X=X, subsample_size=self.subsample_size
             )
-        
-            segment_size=max(1, len(self.forest) // self.num_processes_fit)
+
+            segment_size = max(1, len(self.forest) // self.num_processes_fit)
 
             segments = [
                 self.forest[i : i + segment_size]
@@ -289,7 +303,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
 
-            segment_size=max(1, len(X) // self.num_processes_importances)
+            segment_size = max(1, len(X) // self.num_processes_importances)
 
             segments = [
                 self.forest[i : i + segment_size]
