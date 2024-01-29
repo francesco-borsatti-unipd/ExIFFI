@@ -2,6 +2,8 @@
 Extended Isolation Forest model 
 """
 import sys
+from functools import partial
+from multiprocessing import Pool
 sys.path.append("../")
 from utils.utils import make_rand_vector,c_factor
 import numpy as np
@@ -69,6 +71,10 @@ class ExtendedIF():
                 X_sub = X[np.random.choice(X.shape[0], self.subsample_size, replace=False), :]
                 x.make_tree(X_sub,0,0)
 
+    @staticmethod
+    def segment_sum(segment, X):
+        return np.sum([tree.compute_paths(X) for tree in segment])
+
     def Anomaly_Score(self,X,algorithm=1):
         """
         Compute the Anomaly Score for an input dataset 
@@ -87,8 +93,24 @@ class ExtendedIF():
         """
         mean_path = np.zeros(len(X))
         if algorithm == 1:
-            for i in self.forest:
-                mean_path+=i.compute_paths(X)
+            
+            # divide the self.forest list into segments
+            n_processes = 8 #WARNING#WARNING#WARNING#WARNING#WARNING#WARNING#WARNING#
+
+            if n_processes > 1:
+                segment_size = len(self.forest) // n_processes
+                segment_size = max(segment_size, 1)
+
+                segments = [self.forest[i:i+segment_size] for i in range(0, len(self.forest), segment_size)]
+
+                partial_sum = partial(self.segment_sum, X=X)
+
+                with Pool(n_processes) as pool:
+                    mean_path = pool.map(partial_sum, segments)
+                    mean_path = sum(mean_path)
+            else:
+                for i in self.forest:
+                        mean_path+=i.compute_paths(X)
 
         elif algorithm == 0:
             for i in self.forest:
