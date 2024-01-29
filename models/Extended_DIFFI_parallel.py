@@ -111,21 +111,21 @@ class Extended_DIFFI_tree(ExtendedTree):
         """
 
         # multicore processing
-
-        partial_importance_worker = partial(
-            self.importance_worker,
-            nodes=self.nodes,
-            depth_based=depth_based,
-            left_son=self.left_son,
-            right_son=self.right_son,
-        )
-
-        # split the input vector num_processes
         num_processes = 1  ####################################################
-        segment_size = len(X) // num_processes
-        segments = [X[i : i + segment_size] for i in range(0, len(X), segment_size)]
 
         if num_processes > 1:
+            partial_importance_worker = partial(
+                self.importance_worker,
+                nodes=self.nodes,
+                depth_based=depth_based,
+                left_son=self.left_son,
+                right_son=self.right_son,
+            )
+
+            # split the input vector num_processes
+            segment_size = len(X) // num_processes
+            segments = [X[i : i + segment_size] for i in range(0, len(X), segment_size)]
+
             with Pool(processes=num_processes) as pool:
                 results = pool.map(partial_importance_worker, segments)
 

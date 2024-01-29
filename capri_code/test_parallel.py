@@ -120,10 +120,13 @@ def compute_imps(model, X_train, X_test, n_runs):
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances"):
+        print("pre fit")
         model.fit(X_train)
+        print("fit finito")
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
         )
+        print("imp finito")
 
         mem_MB_lst.append(psutil.Process(os.getpid()).memory_info().rss / 1000**2)
 
