@@ -14,24 +14,24 @@ def load_stats(results_dirpath):
     file_list = glob(os.path.join(results_dirpath, "*.npz"))
     stats = [dict(np.load(path, allow_pickle=True)) for path in file_list]
 
+    columns_to_merge = ["arguments", "execution_time_stat"]
+
     new_stats = []
-    for res in stats:
+    for result in stats:
+
         tmp_dict = {}
-        for k, v in res.items():
-            if k in ["arguments", "execution_time_stat"]:
+
+        for k, v in result.items():
+            if k in columns_to_merge:
                 continue
             tmp_dict[k] = v
 
-        args = res["arguments"].tolist()
+        for dict_name in columns_to_merge:
+            dict_data = result[dict_name].tolist()
 
-        for k, v in args.items():
-            tmp_dict[k] = v
-
-        execution_time_stat = res["execution_time_stat"].tolist()
-
-        for k, v in execution_time_stat.items():
-            tmp_dict[k + "_exec_time"] = v
-
+            for k, v in dict_data.items():
+                tmp_dict[k] = v
+                
         new_stats.append(tmp_dict)
 
     return pd.DataFrame(new_stats)
