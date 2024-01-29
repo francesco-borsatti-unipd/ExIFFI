@@ -41,5 +41,5 @@ def load_stats(results_dirpath):
 
 def display_stats(df):
     df = df.drop(columns=["importances_matrix"], inplace=False)
-
+    df.set_index("time", inplace=True)
     display(df)
