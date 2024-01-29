@@ -180,10 +180,10 @@ def parse_arguments():
         help="If set, add bash -c to the command for timing the code",
     )
     parser.add_argument(
-        "--filename",
+        "--partial_filename",
         type=str,
         default=None,
-        help="To complete the filename",
+        help="Filename on which will be added the dataset name and extension",
     )
     return parser.parse_args()
 
@@ -191,7 +191,7 @@ def parse_arguments():
 def test_exiffi(
     X_train,
     X_test,
-    savedir,
+    savedir: str,
     n_cores_fit,
     n_cores_importance,
     n_cores_anomaly,
@@ -201,7 +201,7 @@ def test_exiffi(
     n_trees=300,
     name="",
     n_runs_imps=10,
-    filename=None
+    partial_filename=None,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -248,15 +248,13 @@ def test_exiffi(
         "max_MB": np.max(ex_mem_MB),
     }
 
-    if filename is None:
-
-        filename = "test_stat_parallel.npz" if parallel else "test_stat_serial.npz"
+    if partial_filename is None:
+        filename = "test_stat_parallel" if parallel else "test_stat_serial"
         t = time.localtime()
         current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
-        filename = current_time + "_" + name + "_" + filename
-
+        filename = current_time + "_" + filename + "_" + name + ".npz"
     else:
-        filename = filename + '_' + name + ".npz"
+        filename = partial_filename + "_" + name + ".npz"
 
     # if dir does not exist, create it
     if not os.path.exists(savedir):
@@ -336,7 +334,7 @@ def main(args):
             n_cores_fit=n_cores_fit,
             n_cores_importance=n_cores_importance,
             n_cores_anomaly=n_cores_anomaly,
-            filename=args.filename
+            partial_filename=args.partial_filename,
         )
 
 
@@ -358,7 +356,11 @@ if __name__ == "__main__":
         current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
         partial_filename = current_time + "_" + partial_filename
 
-        whole_command = ["time", "python", "test_parallel.py"] + arg_str + ["--filename", partial_filename]
+        whole_command = (
+            ["time", "python", "test_parallel.py"]
+            + arg_str
+            + ["--partial_filename", partial_filename]
+        )
         whole_command = " ".join(whole_command)
 
         if args.add_bash:
@@ -375,15 +377,13 @@ if __name__ == "__main__":
         print("\n\noutput\n", output)
         print("\n\nlinux_time_stats\n", linux_time_stats)
 
-        # Use partial_filename to find the npz file and save the linux_time_stats in the npz
-    
-
         # now "linux_time_stats" needs to be added to the dataframe
+        # --> list the files in the savedir with glob
+        # --> use partial_filename to find the npz
         # --> find the npz name (or names if multiple datasets)
         # --> load the npz with the "process_results.py" script
         # --> add the stats to the dataframe
         # --> save the dataframe as pkl with df.to_pickle() with the same name as the npz
-
 
     else:
         main(args)
