@@ -354,6 +354,12 @@ if __name__ == "__main__":
         print("\n\noutput\n", output)
         print("\n\nlinux_time_stats\n", linux_time_stats)
 
+        # now "linux_time_stats" needs to be added to the dataframe
+        # --> find the npz name (or names if multiple datasets)
+        # --> load the npz with the "process_results.py" script
+        # --> add the stats to the dataframe
+        # --> save the dataframe as pkl with df.to_pickle() with the same name as the npz
+
 
     else:
         main(args)
