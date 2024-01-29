@@ -310,9 +310,9 @@ class ExtendedTree():
         paths: List
                 List of nodes encountered by a sample in its path towards the leaf in which it is contained.       
         ''' 
-        paths = []
-        for x in X:
-            id=0
+
+        def path(x):
+            id=0    
             k=1
             s = self.nodes[id]["point"]
             n = self.nodes[id]["normal"]
@@ -325,8 +325,18 @@ class ExtendedTree():
                 s = self.nodes[id]["point"]
                 n = self.nodes[id]["normal"]
                 k+=1
-            paths.append(k)
-        return paths
+            return k
+
+
+        # paths = []
+        # for x in X:
+        #     k = path(x)
+        #     paths.append(k)
+
+        # instead of doing the for loop, use np.apply_along_axis
+        # paths = np.apply_along_axis(path, 1, X)
+
+        return np.apply_along_axis(path, 1, X)
     
     ''' 
     def predict(self,X, algorithm = 1):
