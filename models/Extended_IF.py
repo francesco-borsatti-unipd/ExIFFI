@@ -73,7 +73,8 @@ class ExtendedIF():
 
     @staticmethod
     def segment_sum(segment, X):
-        return np.sum([tree.compute_paths(X) for tree in segment])
+        part_sum = np.sum([tree.compute_paths(X) for tree in segment], axis=0)
+        return part_sum
 
     def Anomaly_Score(self,X,algorithm=1):
         """

@@ -303,12 +303,17 @@ class Extended_DIFFI_parallel(ExtendedIF):
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
 
-            segment_size = max(1, len(X) // self.num_processes_importances)
+            segment_size = max(1, len(self.forest) // self.num_processes_importances)
+
+            print("self.num_processes_importances:", self.num_processes_importances)
+            print("segment_size:", segment_size)
 
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
             ]
+
+            print(f"Segments shapes: {[np.array(s).shape for s in segments]}")
 
             if self.num_processes_importances > 1:
                 with Pool(processes=self.num_processes_importances) as pool:
@@ -376,9 +381,11 @@ class Extended_DIFFI_parallel(ExtendedIF):
         print('End computing Anomaly Score')
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
+        print('Start computing Importances Score')
         importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
+        print('Stop computing Importances Score')
 
         Outliers_mean_importance_vector = np.mean(importances_matrix[ind], axis=0)
         Inliers_mean_Importance_vector = np.mean(

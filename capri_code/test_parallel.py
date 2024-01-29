@@ -115,7 +115,8 @@ def pre_process(path):
 
 
 def compute_imps(model, X_train, X_test, n_runs):
-    X_test = np.r_[X_train, X_test]
+    print(f"shape of X_train: {X_train.shape}")
+    print(f"shape of X_test: {X_test.shape}")
     mem_MB_lst = []
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
@@ -240,6 +241,7 @@ def test_exiffi(
         importances_matrix=ex_imps,
         memory_MB_stats=mem_stat,
         arguments=args,
+        time=pd.Timestamp.now(),
     )
 
 
