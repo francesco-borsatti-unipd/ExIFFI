@@ -1,4 +1,5 @@
-import sys
+import os, psutil
+
 import argparse
 import numpy as np
 import pandas as pd
@@ -114,7 +115,7 @@ def pre_process(path):
 
 
 def compute_imps(model, X_train, X_test, n_runs):
-    X_test=np.r_[X_train,X_test]
+    X_test = np.r_[X_train, X_test]
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in tqdm(range(n_runs)):
@@ -122,6 +123,9 @@ def compute_imps(model, X_train, X_test, n_runs):
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
         )
+
+        
+        print("\n", psutil.Process(os.getpid()).memory_info().rss / 1024**2, "MiB")
 
     return imps
 
@@ -133,22 +137,17 @@ def parse_arguments():
         "--savedir", type=str, required=True, help="Save directory for the results"
     )
     parser.add_argument(
-        "--parallel",
-        action="store_true",
-        help="Boolean to switch between parallel and serial code",
-    )
-    parser.add_argument(
         "--seed", type=int, default=None, help="Set seed for reproducibility"
     )
     parser.add_argument("--n_runs", type=int, default=10, help="Set numner of runs")
     parser.add_argument(
         "--n_cores",
         type=int,
-        default=2,
-        help="Set number of cores to use in parallel code",
+        default=1,
+        help="Set number of cores to use in parallel code. If 1 the code is serial, otherwise it is parallel",
     )
     parser.add_argument(
-        "--num_trees", type=int, default=300, help="Number of trees in ExIFFI"
+        "--n_trees", type=int, default=300, help="Number of trees in ExIFFI"
     )
     parser.add_argument(
         "--dataset_names",
@@ -168,7 +167,7 @@ def test_exiffi(
     seed=None,
     parallel=False,
     n_cores=2,
-    num_trees=300,
+    n_trees=300,
     name="",
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
@@ -186,12 +185,12 @@ def test_exiffi(
 
         if parallel:
             EDIFFI = Extended_DIFFI_parallel(
-                n_trees=num_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
             EDIFFI.set_num_processes(n_cores, n_cores)
         else:
             EDIFFI = Extended_DIFFI_original(
-                n_trees=num_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
         start = time.time()
@@ -220,8 +219,7 @@ def test_exiffi(
     )
 
 
-if __name__ == "__main__":
-    args = parse_arguments()
+def main(args):
     path = os.getcwd()
     path = os.path.dirname(path)
     path_real = os.path.join(path, "data", "real")
@@ -233,12 +231,14 @@ if __name__ == "__main__":
     mat_file_names_real.update(csv_file_names_real)
     dataset_paths = mat_file_names_real.copy()
 
+    args.parallel = args.n_cores > 1
+
     print("#" * 60)
-    print("TESTING PARALLEL ExIFFI")
+    print(f"TESTING {'PARALLEL' if args.parallel else 'SERIAL'} ExIFFI")
     print("#" * 60)
     print("TEST PARAMETERS:")
     print(f"Number of runs: {args.n_runs}")
-    print(f"Number of trees: {args.num_trees}")
+    print(f"Number of trees: {args.n_trees}")
     print(f"Number of cores: {args.n_cores}")
     print(f"Seed: {args.seed}")
     print(f"Parallel: {args.parallel}")
@@ -248,7 +248,7 @@ if __name__ == "__main__":
         dataset_names = args.dataset_names
     else:
         dataset_names = sorted(dataset_names)
-        
+
     print("dataset_names", dataset_names)
 
     for name in dataset_names:
@@ -264,6 +264,11 @@ if __name__ == "__main__":
             seed=args.seed,
             parallel=args.parallel,
             n_cores=args.n_cores,
-            num_trees=args.num_trees,
+            n_trees=args.n_trees,
             name=name,
         )
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    main(args)
