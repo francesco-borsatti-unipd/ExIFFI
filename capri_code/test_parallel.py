@@ -121,14 +121,14 @@ def compute_imps(model, X_train, X_test, n_runs):
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances"):
-        print('Start fit')
+        print("Start fit")
         model.fit(X_train)
-        print('End fit')
-        print('Start Global Importance')
+        print("End fit")
+        print("Start Global Importance")
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
         )
-        print('End Global Importance')
+        print("End Global Importance")
         mem_MB_lst.append(psutil.Process(os.getpid()).memory_info().rss / 1000**2)
 
     return imps, mem_MB_lst
@@ -143,12 +143,15 @@ def parse_arguments():
     parser.add_argument(
         "--seed", type=int, default=None, help="Set seed for reproducibility"
     )
-    parser.add_argument("--n_runs", type=int, default=10, help="Set numner of runs")
+    parser.add_argument("--n_runs", type=int, default=10, help="Set number of runs")
     parser.add_argument(
         "--n_cores",
         type=int,
-        default=1,
-        help="Set number of cores to use in parallel code. If 1 the code is serial, otherwise it is parallel",
+        nargs="+",
+        default=[1],
+        help="Set number of cores to use. "
+        + "If [1] the code is serial, otherwise it is parallel. "
+        + "List of 1 or 3 integers, respectively num processes of fit, importance and anomaly",
     )
     parser.add_argument(
         "--n_runs_imps",
@@ -173,13 +176,15 @@ def test_exiffi(
     X_train,
     X_test,
     savedir,
+    n_cores_fit,
+    n_cores_importance,
+    n_cores_anomaly,
     n_runs=10,
     seed=None,
     parallel=False,
-    n_cores=2,
     n_trees=300,
     name="",
-    n_runs_imps = 10,
+    n_runs_imps=10,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -193,26 +198,26 @@ def test_exiffi(
     ex_mem_MB = []
 
     for i in trange(n_runs, desc="Experiment"):
-        print('Execution 1')
+        print("Execution 1")
         start = time.time()
 
         seed = None if seed is None else seed + i * n_trees
 
         if parallel:
-            print('Set up Extended_DIFFI_parallel')
+            print("Set up Extended_DIFFI_parallel")
             EDIFFI = Extended_DIFFI_parallel(
                 n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
-            EDIFFI.set_num_processes(n_cores, n_cores)
-            print('Finished setting up Extended_DIFFI_parallel')
+            EDIFFI.set_num_processes(n_cores_fit, n_cores_importance, n_cores_anomaly)
+            print("Finished setting up Extended_DIFFI_parallel")
         else:
             EDIFFI = Extended_DIFFI_original(
                 n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
             )
 
-        print('Call compute_imps')
+        print("Call compute_imps")
         imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps)
-        print('End call compute_imps')
+        print("End call compute_imps")
         ex_imps.append(imps)
         ex_mem_MB.append(mem_MB)
 
@@ -257,7 +262,18 @@ def main(args):
     mat_file_names_real.update(csv_file_names_real)
     dataset_paths = mat_file_names_real.copy()
 
-    args.parallel = args.n_cores > 1
+    if len(args.n_cores) == 1:
+        n_cores_fit = args.n_cores[0]
+        n_cores_importance = args.n_cores[0]
+        n_cores_anomaly = args.n_cores[0]
+    elif len(args.n_cores) == 3:
+        n_cores_fit = args.n_cores[0]
+        n_cores_importance = args.n_cores[1]
+        n_cores_anomaly = args.n_cores[2]
+    else:
+        raise ValueError("Number of elements in --n_cores must be either 1 or 3")
+
+    args.parallel = any(n > 1 for n in args.n_cores)
 
     print("#" * 60)
     print(f"TESTING {'PARALLEL' if args.parallel else 'SERIAL'} ExIFFI")
@@ -265,7 +281,9 @@ def main(args):
     print("TEST PARAMETERS:")
     print(f"Number of runs: {args.n_runs}")
     print(f"Number of trees: {args.n_trees}")
-    print(f"Number of cores: {args.n_cores}")
+    print(
+        f"Number of cores: fit {n_cores_fit}, importance {n_cores_importance}, anomaly {n_cores_anomaly}"
+    )
     print(f"Seed: {args.seed}")
     print(f"Parallel: {args.parallel}")
     print("#" * 60)
@@ -289,10 +307,12 @@ def main(args):
             n_runs=args.n_runs,
             seed=args.seed,
             parallel=args.parallel,
-            n_cores=args.n_cores,
             n_trees=args.n_trees,
             name=name,
             n_runs_imps=args.n_runs_imps,
+            n_cores_fit=n_cores_fit,
+            n_cores_importance=n_cores_importance,
+            n_cores_anomaly=n_cores_anomaly,
         )
 
 

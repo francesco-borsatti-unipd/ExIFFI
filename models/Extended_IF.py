@@ -33,7 +33,7 @@ class ExtendedIF():
             This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model 
             will be used, if plus=1 than the EIF_plus model will be considered.      
     """
-    def __init__(self, n_trees, max_depth = None, min_sample = None, dims = None, subsample_size = None, plus=1,seed=None):
+    def __init__(self, n_trees, max_depth = None, min_sample = None, dims = None, subsample_size = None, plus=1,seed=None, num_processes_anomaly=1):
         self.n_trees                    = n_trees
         self.max_depth                  = max_depth
         self.min_sample                 = min_sample
@@ -41,7 +41,8 @@ class ExtendedIF():
         self.subsample_size             = subsample_size
         self.forest                     = None
         self.plus                       = plus
-        self.seed                      = seed
+        self.seed                       = seed
+        self.num_processes_anomaly      = num_processes_anomaly
 
     def fit(self,X):
         """
@@ -93,20 +94,20 @@ class ExtendedIF():
         Returns the Anomaly Scores of all the samples contained in the input dataset X.            
         """
         mean_path = np.zeros(len(X))
+        assert self.forest is not None, "The model has not been fitted yet. Please call the fit function before using the Anomaly_Score function"
+
         if algorithm == 1:
             
-            # divide the self.forest list into segments
-            n_processes = 8 #WARNING#WARNING#WARNING#WARNING#WARNING#WARNING#WARNING#
-
-            if n_processes > 1:
-                segment_size = len(self.forest) // n_processes
+            if self.num_processes_anomaly > 1:
+                # divide the self.forest list into segments
+                segment_size = len(self.forest) // self.num_processes_anomaly
                 segment_size = max(segment_size, 1)
 
                 segments = [self.forest[i:i+segment_size] for i in range(0, len(self.forest), segment_size)]
 
                 partial_sum = partial(self.segment_sum, X=X)
 
-                with Pool(n_processes) as pool:
+                with Pool(self.num_processes_anomaly) as pool:
                     mean_path = pool.map(partial_sum, segments)
                     mean_path = sum(mean_path)
             else:

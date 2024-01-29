@@ -152,6 +152,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.seed = kwarg.get("seed")
         self.num_processes_importances = 1
         self.num_processes_fit = 1
+        self.num_processes_anomaly = 1
 
     @staticmethod
     def make_tree_worker(forest_segment, X, subsample_size):
@@ -236,13 +237,16 @@ class Extended_DIFFI_parallel(ExtendedIF):
                     x.make_tree(X_sub, 0, 0)
                     self.subsets.append(indx)
 
-    def set_num_processes(self, num_processes_importances, num_processes_fit):
+    def set_num_processes(
+        self, num_processes_fit, num_processes_importances, num_processes_anomaly
+    ):
         """
         Set the number of processes to be used in the parallel computation
         of the Global and Local Feature Importance.
         """
-        self.num_processes_importances = num_processes_importances
         self.num_processes_fit = num_processes_fit
+        self.num_processes_importances = num_processes_importances
+        self.num_processes_anomaly = num_processes_anomaly
 
     @staticmethod
     def forest_worker(forest, X, depth_based):
@@ -376,16 +380,16 @@ class Extended_DIFFI_parallel(ExtendedIF):
         Array containig a Global Feature Importance Score for each feature in the dataset.
 
         """
-        print('Start computing Anomaly Score')
+        print("Start computing Anomaly Score")
         anomaly_scores = self.Anomaly_Score(X)
-        print('End computing Anomaly Score')
+        print("End computing Anomaly Score")
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
-        print('Start computing Importances Score')
+        print("Start computing Importances Score")
         importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
-        print('Stop computing Importances Score')
+        print("Stop computing Importances Score")
 
         Outliers_mean_importance_vector = np.mean(importances_matrix[ind], axis=0)
         Inliers_mean_Importance_vector = np.mean(
