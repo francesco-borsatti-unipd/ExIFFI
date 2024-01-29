@@ -194,8 +194,9 @@ class Extended_DIFFI_parallel(ExtendedIF):
             partial_make_tree_worker = partial(
                 self.make_tree_worker, X=X, subsample_size=self.subsample_size
             )
-            # split the input vector into segments
-            segment_size = len(self.forest) // self.num_processes_fit
+        
+            segment_size=max(1, len(self.forest) // self.num_processes_fit)
+
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
@@ -285,9 +286,11 @@ class Extended_DIFFI_parallel(ExtendedIF):
 
             # multicore processing
             # split the input vector into segments
-            segment_size = len(X) // self.num_processes_importances
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
+
+            segment_size=max(1, len(X) // self.num_processes_importances)
+
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
