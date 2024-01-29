@@ -169,6 +169,16 @@ def parse_arguments():
         default=[],
         help="List of names of datasets to test ExIFFI on",
     )
+    parser.add_argument(
+        "--wrapper",
+        action="store_true",
+        help="If set, run the wrapper for timing the code",
+    )
+    parser.add_argument(
+        "--add_bash",
+        action="store_true",
+        help="If set, add bash -c to the command for timing the code",
+    )
     return parser.parse_args()
 
 
@@ -318,4 +328,32 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_arguments()
-    main(args)
+
+    if args.wrapper:
+        import subprocess
+
+        arg_str = sys.argv[1:]
+
+        # remove "--wrapper" from the list of arguments
+        arg_str.remove("--wrapper")
+
+        whole_command = ["time", "python", "test_parallel.py"] + arg_str
+        whole_command = " ".join(whole_command)
+
+        if args.add_bash:
+            whole_command = f'bash -c "{whole_command}"'
+
+        print("\n\nwhole command\n", whole_command)
+
+        output = subprocess.check_output(
+            whole_command, stderr=subprocess.STDOUT, text=True, shell=True
+        )
+
+        linux_time_stats = [i.split("\t") for i in output.split("\n")[-4:-1]]
+
+        print("\n\noutput\n", output)
+        print("\n\nlinux_time_stats\n", linux_time_stats)
+
+
+    else:
+        main(args)
