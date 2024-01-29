@@ -114,7 +114,7 @@ def pre_process(path):
 
 
 def compute_imps(model, X_train, X_test, n_runs):
-    # X_test=np.r_[X_train,X_test]
+    X_test=np.r_[X_train,X_test]
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in tqdm(range(n_runs)):

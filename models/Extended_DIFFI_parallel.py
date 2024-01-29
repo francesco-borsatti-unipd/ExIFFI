@@ -196,6 +196,10 @@ class Extended_DIFFI_parallel(ExtendedIF):
             )
             # split the input vector into segments
             segment_size = len(self.forest) // self.num_processes_fit
+
+            if segment_size == 0:
+                raise ValueError('num_trees cannot be lower than num_cores')
+
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
@@ -288,6 +292,10 @@ class Extended_DIFFI_parallel(ExtendedIF):
             segment_size = len(X) // self.num_processes_importances
             # from this: [tree0, tree1, tree2, tree3, tree4]
             # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
+
+            if segment_size == 0:
+                raise ValueError('len(X) cannot be lower than num_cores')
+
             segments = [
                 self.forest[i : i + segment_size]
                 for i in range(0, len(self.forest), segment_size)
