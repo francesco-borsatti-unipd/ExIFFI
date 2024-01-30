@@ -30,6 +30,7 @@ from scipy.io import loadmat
 from glob import glob
 
 import warnings
+from process_results import load_stats
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
@@ -376,6 +377,19 @@ if __name__ == "__main__":
 
         print("\n\noutput\n", output)
         print("\n\nlinux_time_stats\n", linux_time_stats)
+
+        filepath=glob(os.path.join(args.savedir,f"*{partial_filename}*"))[0]
+
+        stats=load_stats(args.savedir,filepath=filepath)
+
+        stats['real_time']=linux_time_stats[0][0]
+
+        for ts in linux_time_stats:
+            stats[ts[0] + "_time"]=ts[1]
+
+        print("\n\nSaving time stats in", filepath)
+
+        stats.to_pickle(filepath.replace(".npz",".pkl"))
 
         # now "linux_time_stats" needs to be added to the dataframe
         # --> list the files in the savedir with glob
