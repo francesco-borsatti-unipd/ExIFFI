@@ -57,6 +57,8 @@ def display_stats(df):
 
     df = df.drop(columns=["importances_matrix", "filename"], inplace=False)
     df.set_index("time", inplace=True)
+    # order by index
+    df.sort_index(inplace=True)
     display(df)
 
 
