@@ -1,14 +1,25 @@
 import os, psutil
+import time
+import warnings
 
 import argparse
 import numpy as np
 import pandas as pd
 from tqdm import trange
+from scipy.io import loadmat
+from glob import glob
+from sklearn.preprocessing import StandardScaler
+import seaborn as sns
+
+sns.set()
+
+
 from append_dir import append_dirname
 
 append_dirname("ExIFFI")
 from utils.utils import partition_data
 from utils.feature_selection import *
+from process_results import load_stats
 
 # from plot import *
 # from simulation_setup import *
@@ -16,21 +27,6 @@ from models import *
 from models.Extended_IF import *
 from models.Extended_DIFFI_parallel import *
 from models.Extended_DIFFI_original import *
-import math
-import seaborn as sns
-
-sns.set()
-
-from sklearn.preprocessing import StandardScaler
-import time
-
-import os
-import pickle
-from scipy.io import loadmat
-from glob import glob
-
-import warnings
-from process_results import load_stats
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
@@ -165,9 +161,9 @@ def parse_arguments():
     )
     parser.add_argument(
         "--dataset_names",
+        required=True,
         nargs="+",
         type=str,
-        default=[],
         help="List of names of datasets to test ExIFFI on",
     )
     parser.add_argument(
@@ -181,10 +177,10 @@ def parse_arguments():
         help="If set, add bash -c to the command for timing the code",
     )
     parser.add_argument(
-        "--partial_filename",
+        "--filename",
         type=str,
         default=None,
-        help="Filename on which will be added the dataset name and extension",
+        help="Filename of the output saved file. If None, it is automatically generated",
     )
     return parser.parse_args()
 
@@ -202,7 +198,7 @@ def test_exiffi(
     n_trees=300,
     name="",
     n_runs_imps=10,
-    partial_filename=None,
+    filename=None,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -249,13 +245,8 @@ def test_exiffi(
         "max_MB": np.max(ex_mem_MB),
     }
 
-    if partial_filename is None:
-        filename = "test_stat_parallel" if parallel else "test_stat_serial"
-        t = time.localtime()
-        current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
-        filename = current_time + "_" + filename + "_" + name + ".npz"
-    else:
-        filename = partial_filename + "_" + name + ".npz"
+    if filename is None:
+        filename = get_filename(parallel, name)
 
     # if dir does not exist, create it
     if not os.path.exists(savedir):
@@ -335,14 +326,35 @@ def main(args):
             n_cores_fit=n_cores_fit,
             n_cores_importance=n_cores_importance,
             n_cores_anomaly=n_cores_anomaly,
-            partial_filename=args.partial_filename,
+            filename=args.filename,
         )
+
+
+def str_to_sec(time_str):
+    """
+    Takes a string of the form "1m5,928s" and returns the time in seconds
+    """
+    time_str = time_str.replace(",", ".")
+    time_str = time_str.replace("s", "")
+    time_str = time_str.split("m")
+    time_sec = float(time_str[0]) * 60 + float(time_str[1])
+    return time_sec
+
+def get_filename(is_parallel: bool, dataset_name: str):
+    partial_filename = "test_stat_parallel" if is_parallel else "test_stat_serial"
+    t = time.localtime()
+    current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
+    partial_filename = (
+        current_time + "_" + partial_filename + "_" + dataset_name + ".npz"
+    )
+    return partial_filename
 
 
 if __name__ == "__main__":
     args = parse_arguments()
 
     if args.wrapper:
+
         import subprocess
 
         arg_str = sys.argv[1:]
@@ -350,54 +362,67 @@ if __name__ == "__main__":
         # remove "--wrapper" from the list of arguments
         arg_str.remove("--wrapper")
 
+        # remove the "--dataset_names" argument and its value from the list of arguments
+        arg_str.remove("--dataset_names")
+        for dataset_name in args.dataset_names:
+            arg_str.remove(dataset_name)
+
         args.parallel = any(n > 1 for n in args.n_cores)
 
-        partial_filename = "test_stat_parallel" if args.parallel else "test_stat_serial"
-        t = time.localtime()
-        current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
-        partial_filename = current_time + "_" + partial_filename
+        # if more than one dataset name is given, remove them from the list of arguments
+        # and iterate one at a time, adding just one dataset name to the arguments
 
-        whole_command = (
-            ["time", "python", "test_parallel.py"]
-            + arg_str
-            + ["--partial_filename", partial_filename]
-        )
-        whole_command = " ".join(whole_command)
+        # dobbiamo usare il name completo dato che ne facciamo uno alla volta
 
-        if args.add_bash:
-            whole_command = f'bash -c "{whole_command}"'
+        for dataset_name in args.dataset_names:
+            filename = get_filename(args.parallel, dataset_name)
 
-        print("\n\nwhole command\n", whole_command)
+            whole_command = (
+                ["time", "python", "test_parallel.py"]
+                + arg_str
+                + ["--dataset_names", dataset_name]
+                + ["--filename", filename]
+            )
+            whole_command = " ".join(whole_command)
 
-        output = subprocess.check_output(
-            whole_command, stderr=subprocess.STDOUT, text=True, shell=True
-        )
+            if args.add_bash:
+                whole_command = f'bash -c "{whole_command}"'
 
-        linux_time_stats = [i.split("\t") for i in output.split("\n")[-4:-1]]
+            print("\n\nwhole command\n", whole_command)
 
-        print("\n\noutput\n", output)
-        print("\n\nlinux_time_stats\n", linux_time_stats)
+            output = subprocess.check_output(
+                whole_command, stderr=subprocess.STDOUT, text=True, shell=True
+            )
 
-        filepath=glob(os.path.join(args.savedir,f"*{partial_filename}*"))[0]
+            linux_time_stats = [i.split("\t") for i in output.split("\n")[-4:-1]]
 
-        stats=load_stats(args.savedir,filepath=filepath)
+            print("\n\noutput\n", output)
 
-        stats['real_time']=linux_time_stats[0][0]
+            # now "linux_time_stats" needs to be added to the dataframe
+            # --> list the files in the savedir with glob
+            # --> use partial_filename to find the npz
+            # --> find the npz name (or names if multiple datasets)
+            # --> load the npz with the "process_results.py" script
+            # --> add the stats to the dataframe
+            # --> save the dataframe as pkl with df.to_pickle() with the same name as the npz
 
-        for ts in linux_time_stats:
-            stats[ts[0] + "_time"]=ts[1]
+            filepath = os.path.join(args.savedir, filename)
 
-        print("\n\nSaving time stats in", filepath)
+            stats = load_stats(args.savedir, filepath=filepath)
 
-        stats.to_pickle(filepath.replace(".npz",".pkl"))
+            for ts in linux_time_stats:
+                stats[ts[0] + "_time"] = str_to_sec(ts[1])
 
-        # now "linux_time_stats" needs to be added to the dataframe
-        # --> list the files in the savedir with glob
-        # --> use partial_filename to find the npz
-        # --> find the npz name (or names if multiple datasets)
-        # --> load the npz with the "process_results.py" script
-        # --> add the stats to the dataframe
-        # --> save the dataframe as pkl with df.to_pickle() with the same name as the npz
+            print(stats)
+
+            print("\n\nSaving time stats in", filepath)
+
+            stats.to_pickle(filepath.replace(".npz", ".pkl"))
+
+            # delete the npz file
+            os.remove(filepath)
+
+
 
     else:
         main(args)
