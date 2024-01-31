@@ -52,13 +52,14 @@ def load_stats(results_dirpath, filepath: Optional[str] = None, use_pkl: bool = 
     return pd.DataFrame(new_stats)
 
 
-def display_stats(df):
+def display_stats(df, sort_index=True):
     from IPython.display import display
 
     df = df.drop(columns=["importances_matrix", "filename"], inplace=False)
     df.set_index("time", inplace=True)
     # order by index
-    df.sort_index(inplace=True)
+    if sort_index:
+        df.sort_index(inplace=True)
     display(df)
 
 
