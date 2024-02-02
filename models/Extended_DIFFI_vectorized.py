@@ -31,78 +31,34 @@ class Extended_DIFFI_tree(ExtendedTree):
         Normal_vectors_list: np.array
                 List of all the normal vectors used in the splitting hyperplane creation.
         """
-        Importances_list = []
-        Normal_vectors_list = []
-        for x in X:
-            importance = np.zeros(len(x))
-            sum_normal = np.zeros(len(x))
-            id = 0
-            s = self.nodes[id]["point"]
-            n = self.nodes[id]["normal"]
-            N = self.nodes[id]["numerosity"]
-            depth = 0
+        Importances_list = np.zeros(X.shape[0], X.shape[1])
+        Normal_vectors_list = np.zeros(X.shape[0], X.shape[1])
+        for i, x in enumerate(X):
+            id = s = depth = 0
             while s is not None:
-                val = x.dot(n) - s > 0
-                old_id = id
-                if val:
-                    id = self.left_son[id]
-                    sum_normal += np.abs(n)
-                    if depth_based == True:
-                        singular_importance = (
-                            np.abs(n)
-                            * (N / (self.nodes[id]["numerosity"] + 1))
-                            * 1
-                            / (1 + depth)
-                        )
-                        importance += singular_importance
-                        self.nodes[old_id].setdefault(
-                            "left_importance_depth", singular_importance
-                        )
-                        self.nodes[old_id].setdefault("depth", depth)
-                    else:
-                        singular_importance = np.abs(n) * (
-                            N / (self.nodes[id]["numerosity"] + 1)
-                        )
-                        importance += singular_importance
-                        self.nodes[old_id].setdefault(
-                            "left_importance", singular_importance
-                        )
-                        self.nodes[old_id].setdefault("depth", depth)
-                    depth += 1
-                else:
-                    id = self.right_son[id]
-                    sum_normal += np.abs(n)
-                    if depth_based == True:
-                        singular_importance = (
-                            np.abs(n)
-                            * (N / (self.nodes[id]["numerosity"] + 1))
-                            * 1
-                            / (1 + depth)
-                        )
-                        importance += singular_importance
-                        self.nodes[old_id].setdefault(
-                            "right_importance_depth", singular_importance
-                        )
-                        self.nodes[old_id].setdefault("depth", depth)
-                    else:
-                        singular_importance = np.abs(n) * (
-                            N / (self.nodes[id]["numerosity"] + 1)
-                        )
-                        importance += singular_importance
-                        self.nodes[old_id].setdefault(
-                            "right_importance", singular_importance
-                        )
-                        self.nodes[old_id].setdefault("depth", depth)
-                    depth += 1
                 s = self.nodes[id]["point"]
                 n = self.nodes[id]["normal"]
                 N = self.nodes[id]["numerosity"]
-            Importances_list.append(importance)
-            Normal_vectors_list.append(sum_normal)
-        return np.array(Importances_list), np.array(Normal_vectors_list)
+                old_id = id
+                if x.dot(n) - s > 0:
+                    side = "left_importance"
+                    id = self.left_son[id]
+                else:
+                    side = "right_importance"
+                    id = self.right_son[id]
+                abs_n = np.abs(n)
+                singular_importance = abs_n * (N / (self.nodes[id]["numerosity"] + 1))
+                if depth_based == True:
+                    singular_importance /= 1 + depth
+                Importances_list[i] += singular_importance
+                Normal_vectors_list[i] += abs_n
+                self.nodes[old_id].setdefault(side, singular_importance)
+                self.nodes[old_id].setdefault("depth", depth)
+                depth += 1
+        return Importances_list, Normal_vectors_list
 
 
-class Extended_DIFFI_original(ExtendedIF):
+class Extended_DIFFI_vectorized(ExtendedIF):
     def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.sum_importances_matrix = None
