@@ -260,6 +260,13 @@ class ExtendedTree:
         self.seed = seed
         self.num_rand_calls = 0
 
+        if plus:
+            self.random_bias = lambda val: np.random.normal(
+                np.mean(val), np.std(val) * 2
+            )
+        else:
+            self.random_bias = lambda val: np.random.uniform(np.min(val), np.max(val))
+
     def make_tree(self, X, id, depth):
         """
         Create an Isolation Tree using the separating hyperplanes
@@ -287,13 +294,7 @@ class ExtendedTree:
             self.num_rand_calls += 1
 
             val = X.dot(n)
-            val_min = np.min(val)
-            val_max = np.max(val)
-            if np.random.random() < self.plus:
-                s = np.random.normal(np.mean(val), np.std(val) * 2)
-            else:
-                s = np.random.uniform(val_min, val_max)
-
+            s = self.random_bias(val)
             lefts = val > s
 
             self.nodes[id] = {"point": s, "normal": n, "numerosity": len(X)}
@@ -367,28 +368,17 @@ class ExtendedTree:
         """
 
         def path(x):
-            id = 0
             k = 1
-            s = self.nodes[id]["point"]
-            n = self.nodes[id]["normal"]
+            id = s = 0
             while s is not None:
-                val = x.dot(n) - s > 0
-                if val:
+                s = self.nodes[id]["point"]
+                n = self.nodes[id]["normal"]
+                if x.dot(n) - s > 0:
                     id = self.left_son[id]
                 else:
                     id = self.right_son[id]
-                s = self.nodes[id]["point"]
-                n = self.nodes[id]["normal"]
                 k += 1
             return k
-
-        # paths = []
-        # for x in X:
-        #     k = path(x)
-        #     paths.append(k)
-
-        # instead of doing the for loop, use np.apply_along_axis
-        # paths = np.apply_along_axis(path, 1, X)
 
         return np.apply_along_axis(path, 1, X)
 
