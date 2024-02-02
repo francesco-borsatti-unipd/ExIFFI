@@ -8,8 +8,6 @@ import numpy as np
 class Extended_DIFFI_tree(ExtendedTree):
     def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
-        self.importances = []
-        self.sum_normals = []
 
     def make_importance(self, X, depth_based):
         """
@@ -31,8 +29,8 @@ class Extended_DIFFI_tree(ExtendedTree):
         Normal_vectors_list: np.array
                 List of all the normal vectors used in the splitting hyperplane creation.
         """
-        Importances_list = np.zeros(X.shape[0], X.shape[1])
-        Normal_vectors_list = np.zeros(X.shape[0], X.shape[1])
+        Importances_list = np.zeros((X.shape[0], X.shape[1]))
+        Normal_vectors_list = np.zeros((X.shape[0], X.shape[1]))
         for i, x in enumerate(X):
             id = s = depth = 0
             while s is not None:
