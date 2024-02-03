@@ -9,9 +9,9 @@ from tqdm import trange
 from scipy.io import loadmat
 from glob import glob
 from sklearn.preprocessing import StandardScaler
-import seaborn as sns
 
-sns.set()
+# import seaborn as sns
+# sns.set()
 
 
 from append_dir import append_dirname
@@ -340,6 +340,7 @@ def str_to_sec(time_str):
     time_sec = float(time_str[0]) * 60 + float(time_str[1])
     return time_sec
 
+
 def get_filename(is_parallel: bool, dataset_name: str):
     partial_filename = "test_stat_parallel" if is_parallel else "test_stat_serial"
     t = time.localtime()
@@ -354,7 +355,6 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     if args.wrapper:
-
         import subprocess
 
         arg_str = sys.argv[1:]
@@ -421,8 +421,6 @@ if __name__ == "__main__":
 
             # delete the npz file
             os.remove(filepath)
-
-
 
     else:
         main(args)

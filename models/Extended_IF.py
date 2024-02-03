@@ -266,18 +266,18 @@ class ExtendedTree:
         self.seed = seed
         self.num_rand_calls = 0
 
-        if plus == 1:
-            self.random_bias = lambda val: np.random.normal(
-                np.mean(val), np.std(val) * 2
-            )
-        elif plus == 0:
-            self.random_bias = lambda val: np.random.uniform(np.min(val), np.max(val))
-        else:
-            self.random_bias = (
-                lambda val: np.random.normal(np.mean(val), np.std(val) * 2)
-                if np.random.random() < plus
-                else np.random.uniform(np.min(val), np.max(val))
-            )
+        # if plus == 1:
+        #     self.random_bias = lambda val: np.random.normal(
+        #         np.mean(val), np.std(val) * 2
+        #     )
+        # elif plus == 0:
+        #     self.random_bias = lambda val: np.random.uniform(np.min(val), np.max(val))
+        # else:
+        #     self.random_bias = lambda val: (
+        #         np.random.normal(np.mean(val), np.std(val) * 2)
+        #         if np.random.random() < plus
+        #         else np.random.uniform(np.min(val), np.max(val))
+        #     )
 
     def make_tree(self, X, id, depth):
         """
@@ -306,7 +306,12 @@ class ExtendedTree:
             self.num_rand_calls += 1
 
             val = X.dot(n)
-            s = self.random_bias(val)
+            # s = self.random_bias(val)
+            s = (
+                np.random.normal(np.mean(val), np.std(val) * 2)
+                if np.random.random() < self.plus
+                else np.random.uniform(np.min(val), np.max(val))
+            )
             lefts = val > s
 
             self.nodes[id] = {"point": s, "normal": n, "numerosity": len(X)}
@@ -381,9 +386,11 @@ class ExtendedTree:
 
         def path(x):
             k = 1
-            id = s = 0
-            while s is not None:
+            id = 0
+            while True:
                 s = self.nodes[id]["point"]
+                if s is None:
+                    break
                 n = self.nodes[id]["normal"]
                 if x.dot(n) - s > 0:
                     id = self.left_son[id]

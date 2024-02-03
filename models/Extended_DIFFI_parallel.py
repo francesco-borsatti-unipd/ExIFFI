@@ -1,4 +1,6 @@
 import sys
+import pickle
+from typing import List
 import logging
 from functools import partial
 from multiprocessing import Pool, cpu_count
@@ -17,76 +19,51 @@ class Extended_DIFFI_tree(ExtendedTree):
 
     @staticmethod
     def importance_worker(X, nodes, depth_based, left_son, right_son):
-        Importances_list = []
-        Normal_vectors_list = []
+        """
+        Compute the Importance Scores for each node along the Isolation Trees.
+        --------------------------------------------------------------------------------
 
-        for x in X:
-            importance = np.zeros(len(x))
-            sum_normal = np.zeros(len(x))
-            id = 0
-            s = nodes[id]["point"]
-            n = nodes[id]["normal"]
-            N = nodes[id]["numerosity"]
-            depth = 0
+        Parameters
+        ----------
+        X: pd.DataFrame
+                Input dataset
+        depth_based: bool
+                Boolean variable used to decide weather to used the Depth Based or the Not Depth Based Importance
+                computation function.
 
-            while s is not None:
-                val = x.dot(n) - s > 0
-                old_id = id
-                if val:
-                    id = left_son[id]
-                    sum_normal += np.abs(n)
-                    if depth_based == True:
-                        singular_importance = (
-                            np.abs(n)
-                            * (N / (nodes[id]["numerosity"] + 1))
-                            * 1
-                            / (1 + depth)
-                        )
-                        importance += singular_importance
-                        nodes[old_id].setdefault(
-                            "left_importance_depth", singular_importance
-                        )
-                        nodes[old_id].setdefault("depth", depth)
-                    else:
-                        singular_importance = np.abs(n) * (
-                            N / (nodes[id]["numerosity"] + 1)
-                        )
-                        importance += singular_importance
-                        nodes[old_id].setdefault("left_importance", singular_importance)
-                        nodes[old_id].setdefault("depth", depth)
-                    depth += 1
-                else:
-                    id = right_son[id]
-                    sum_normal += np.abs(n)
-                    if depth_based == True:
-                        singular_importance = (
-                            np.abs(n)
-                            * (N / (nodes[id]["numerosity"] + 1))
-                            * 1
-                            / (1 + depth)
-                        )
-                        importance += singular_importance
-                        nodes[old_id].setdefault(
-                            "right_importance_depth", singular_importance
-                        )
-                        nodes[old_id].setdefault("depth", depth)
-                    else:
-                        singular_importance = np.abs(n) * (
-                            N / (nodes[id]["numerosity"] + 1)
-                        )
-                        importance += singular_importance
-                        nodes[old_id].setdefault(
-                            "right_importance", singular_importance
-                        )
-                        nodes[old_id].setdefault("depth", depth)
-                    depth += 1
+        Returns
+        ----------
+        Importances_list: np.array
+                List with the Importances values for all the nodes in the Isolation Tree.
+        Normal_vectors_list: np.array
+                List of all the normal vectors used in the splitting hyperplane creation.
+        """
+        Importances_list = np.zeros((X.shape[0], X.shape[1]))
+        Normal_vectors_list = np.zeros((X.shape[0], X.shape[1]))
+        for i, x in enumerate(X):
+            id = depth = 0
+            while True:
                 s = nodes[id]["point"]
+                if s is None:
+                    break
                 n = nodes[id]["normal"]
                 N = nodes[id]["numerosity"]
-
-            Importances_list.append(importance)
-            Normal_vectors_list.append(sum_normal)
-
+                old_id = id
+                if x.dot(n) - s > 0:
+                    side = "left_importance"
+                    id = left_son[id]
+                else:
+                    side = "right_importance"
+                    id = right_son[id]
+                abs_n = np.abs(n)
+                singular_importance = abs_n * (N / (nodes[id]["numerosity"] + 1))
+                if depth_based == True:
+                    singular_importance /= 1 + depth
+                Importances_list[i] += singular_importance
+                Normal_vectors_list[i] += abs_n
+                nodes[old_id].setdefault(side, singular_importance)
+                nodes[old_id].setdefault("depth", depth)
+                depth += 1
         return Importances_list, Normal_vectors_list
 
     def make_importance(self, X, depth_based):
@@ -112,6 +89,19 @@ class Extended_DIFFI_tree(ExtendedTree):
 
         # multicore processing
         num_processes = 1  ####################################################
+
+        # dump nodes=self.nodes, left_son=self.left_son, right_son=self.right_son
+        # to a file : nodes.pkl
+        with open("nodes_wine.pkl", "wb") as f:
+            pickle.dump(
+                {
+                    "nodes": self.nodes,
+                    "left_son": self.left_son,
+                    "right_son": self.right_son,
+                    "X": X,
+                },
+                f,
+            )
 
         if num_processes > 1:
             partial_importance_worker = partial(
@@ -155,7 +145,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.num_processes_anomaly = 1
 
     @staticmethod
-    def make_tree_worker(forest_segment, X, subsample_size):
+    def make_tree_worker(forest_segment: List[Extended_DIFFI_tree], X, subsample_size):
         # subsets = []
         for x in forest_segment:
             if not subsample_size or subsample_size > X.shape[0]:
@@ -197,9 +187,11 @@ class Extended_DIFFI_parallel(ExtendedIF):
                 min_sample=self.min_sample,
                 max_depth=self.max_depth,
                 plus=self.plus,
-                seed=self.seed + i + self.num_fit_calls * self.n_trees * self.max_depth
-                if self.seed
-                else None,
+                seed=(
+                    self.seed + i + self.num_fit_calls * self.n_trees * self.max_depth
+                    if self.seed
+                    else None
+                ),
             )
             for i in range(self.n_trees)
         ]
@@ -249,7 +241,7 @@ class Extended_DIFFI_parallel(ExtendedIF):
         self.num_processes_anomaly = num_processes_anomaly
 
     @staticmethod
-    def forest_worker(forest, X, depth_based):
+    def forest_worker(forest: List[Extended_DIFFI_tree], X, depth_based):
         """
         This takes a segment of the forest, which is a list of trees.
         Given a dataset X and the depth_based option, return a function that
