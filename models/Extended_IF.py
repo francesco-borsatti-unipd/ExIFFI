@@ -65,11 +65,16 @@ class ExtendedIF():
             self.max_depth = np.inf
 
         self.forest = [ExtendedTree(self.dims, self.min_sample, self.max_depth,self.plus,self.seed) for i in range(self.n_trees)]
-        for x in self.forest:
+
+        if self.subsample_size:
+            # crea direttamente la "selezione" del subset random choice of shape (num_trees, subsample_size)
+            subsets_idxs=np.random.randint(0,X.shape[0],size=(self.n_trees,self.subsample_size))
+
+        for i,x in enumerate(self.forest):
             if not self.subsample_size:
-                x.make_tree(X,0,0)
+                x.make_tree(X.view(),0,0)
             else:
-                X_sub = X[np.random.choice(X.shape[0], self.subsample_size, replace=False), :]
+                X_sub = X.view()[subsets_idxs[i], :]
                 x.make_tree(X_sub,0,0)
 
     @staticmethod
@@ -260,12 +265,10 @@ class ExtendedTree():
             self.num_rand_calls += 1
             
             val = X.dot(n)
-            val_min = np.min(val)
-            val_max = np.max(val)
             if np.random.random() < self.plus:
                 s = np.random.normal(np.mean(val),np.std(val)*2)
             else:
-                s = np.random.uniform(val_min,val_max)
+                s = np.random.uniform(np.min(val),np.max(val))
             
             lefts = val>s
                 
