@@ -1,54 +1,68 @@
 """
 Extended Isolation Forest model 
 """
+
 import sys
 from functools import partial
 from multiprocessing import Pool
+
 sys.path.append("../")
-from utils.utils import make_rand_vector,c_factor
+from utils.utils import make_rand_vector, c_factor
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
 
-class ExtendedIF():
+
+class ExtendedIF:
     """
     EIF/EIF_plus model implementation
     --------------------------------------------------------------------------------
-    
+
     Parameters
     ----------
     n_trees: int
-            Number of Isolation Trees composing the forest 
+            Number of Isolation Trees composing the forest
     max_depth: int
             Maximum depth at which a sample can be considered as isolated
     min_sample: int
-            Minimum number of samples in a node where isolation is achieved 
+            Minimum number of samples in a node where isolation is achieved
     dims: int
-            Number of degrees of freedom used in the separating hyperplanes. 
+            Number of degrees of freedom used in the separating hyperplanes.
     subsample_size: int
             Subsample size used in each Isolation Tree
     forest: List
             List of objects from the class ExtendedTree
     plus: int
-            This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model 
-            will be used, if plus=1 than the EIF_plus model will be considered.      
+            This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model
+            will be used, if plus=1 than the EIF_plus model will be considered.
     """
-    def __init__(self, n_trees, max_depth = None, min_sample = None, dims = None, subsample_size = None, plus=1,seed=None, num_processes_anomaly=1):
-        self.n_trees                    = n_trees
-        self.max_depth                  = max_depth
-        self.min_sample                 = min_sample
-        self.dims                       = dims
-        self.subsample_size             = subsample_size
-        self.forest                     = None
-        self.plus                       = plus
-        self.seed                       = seed
-        self.num_processes_anomaly      = num_processes_anomaly
 
-    def fit(self,X):
+    def __init__(
+        self,
+        n_trees,
+        max_depth=None,
+        min_sample=None,
+        dims=None,
+        subsample_size=None,
+        plus=1,
+        seed=None,
+        num_processes_anomaly=1,
+    ):
+        self.n_trees = n_trees
+        self.max_depth = max_depth
+        self.min_sample = min_sample
+        self.dims = dims
+        self.subsample_size = subsample_size
+        self.forest = None
+        self.plus = plus
+        self.seed = seed
+        self.num_processes_anomaly = num_processes_anomaly
+
+    def fit(self, X):
         """
-        Fit the EIF/EIF_plus model. 
+        Fit the EIF/EIF_plus model.
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
@@ -64,51 +78,62 @@ class ExtendedIF():
         if not self.max_depth:
             self.max_depth = np.inf
 
-        self.forest = [ExtendedTree(self.dims, self.min_sample, self.max_depth,self.plus,self.seed) for i in range(self.n_trees)]
+        self.forest = [
+            ExtendedTree(
+                self.dims, self.min_sample, self.max_depth, self.plus, self.seed
+            )
+            for i in range(self.n_trees)
+        ]
 
         if self.subsample_size:
             # crea direttamente la "selezione" del subset random choice of shape (num_trees, subsample_size)
-            subsets_idxs=np.random.randint(0,X.shape[0],size=(self.n_trees,self.subsample_size))
+            subsets_idxs = np.random.randint(
+                0, X.shape[0], size=(self.n_trees, self.subsample_size)
+            )
 
-        for i,x in enumerate(self.forest):
+        for i, x in enumerate(self.forest):
             if not self.subsample_size:
-                x.make_tree(X.view(),0,0)
+                x.make_tree(X.view(), 0, 0)
             else:
                 X_sub = X.view()[subsets_idxs[i], :]
-                x.make_tree(X_sub,0,0)
+                x.make_tree(X_sub, 0, 0)
 
     @staticmethod
     def segment_sum(segment, X):
         part_sum = np.sum([tree.compute_paths(X) for tree in segment], axis=0)
         return part_sum
 
-    def Anomaly_Score(self,X,algorithm=1):
+    def Anomaly_Score(self, X, algorithm=1):
         """
-        Compute the Anomaly Score for an input dataset 
+        Compute the Anomaly Score for an input dataset
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
                 Input dataset
         algorithm: int
-                This variable is used to decide weather to use the compute_paths or compute_paths2 function in the computation of the 
+                This variable is used to decide weather to use the compute_paths or compute_paths2 function in the computation of the
                 Anomaly Scores.
         Returns
         ----------
-        Returns the Anomaly Scores of all the samples contained in the input dataset X.            
+        Returns the Anomaly Scores of all the samples contained in the input dataset X.
         """
         mean_path = np.zeros(len(X))
-        assert self.forest is not None, "The model has not been fitted yet. Please call the fit function before using the Anomaly_Score function"
+        assert (
+            self.forest is not None
+        ), "The model has not been fitted yet. Please call the fit function before using the Anomaly_Score function"
 
         if algorithm == 1:
-            
             if self.num_processes_anomaly > 1:
                 # divide the self.forest list into segments
                 segment_size = len(self.forest) // self.num_processes_anomaly
                 segment_size = max(segment_size, 1)
 
-                segments = [self.forest[i:i+segment_size] for i in range(0, len(self.forest), segment_size)]
+                segments = [
+                    self.forest[i : i + segment_size]
+                    for i in range(0, len(self.forest), segment_size)
+                ]
 
                 partial_sum = partial(self.segment_sum, X=X)
 
@@ -117,22 +142,22 @@ class ExtendedIF():
                     mean_path = sum(mean_path)
             else:
                 for i in self.forest:
-                        mean_path+=i.compute_paths(X)
+                    mean_path += i.compute_paths(X)
 
         elif algorithm == 0:
             for i in self.forest:
-                mean_path+=i.compute_paths2(X,0)
+                mean_path += i.compute_paths2(X, 0)
 
-        mean_path = mean_path/len(self.forest)
+        mean_path = mean_path / len(self.forest)
         c = c_factor(len(X))
 
-        return 2**(-mean_path/c)
+        return 2 ** (-mean_path / c)
 
-    def _predict(self,X,p):
+    def _predict(self, X, p):
         """
         Predict the anomalous or not anomalous nature of a set of input samples
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
@@ -142,230 +167,232 @@ class ExtendedIF():
         Returns
         ----------
         y_hat: np.array
-                Returns 0 for inliers and 1 for outliers          
+                Returns 0 for inliers and 1 for outliers
         """
         An_score = self.Anomaly_Score(X)
-        y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
+        y_hat = An_score > sorted(An_score, reverse=True)[int(p * len(An_score))]
         return y_hat
 
-    #??? 
-    def evaluate(self,X,y,p):
+    # ???
+    def evaluate(self, X, y, p):
         An_score = self.Anomaly_Score(X)
-        m = np.c_[An_score,y]
-        m = m[(-m[:,0]).argsort()]
-        return np.sum(m[:int(p*len(X)),1])/int(p*len(X))
+        m = np.c_[An_score, y]
+        m = m[(-m[:, 0]).argsort()]
+        return np.sum(m[: int(p * len(X)), 1]) / int(p * len(X))
 
-    def print_score_map(self,X,resolution,plot=None,features=[0,1]):
-        '''
-        Produce the Anomaly Score Scoremap.   
+    def print_score_map(self, X, resolution, plot=None, features=[0, 1]):
+        """
+        Produce the Anomaly Score Scoremap.
         --------------------------------------------------------------------------------
-        
+
         Parameters
-        ---------- 
+        ----------
         X: pd.DataFrame
                 Input dataset
         resolution: int
-                Scoremap resolution 
+                Scoremap resolution
         plot: None
-                Variable used to distinguish different ways of managing the plot settings. 
-                By default the value of plot is set to None. 
+                Variable used to distinguish different ways of managing the plot settings.
+                By default the value of plot is set to None.
         features: List
                 List containing the pair of variables compared in the Scoremap.
-                By default the value of features is [0,1]. 
+                By default the value of features is [0,1].
         Returns
         ----------
-        Returns the Anomaly Score Scoremap  
-        '''
+        Returns the Anomaly Score Scoremap
+        """
         if plot == None:
-            fig,plot = plt.subplots(1,1,figsize=(10,10))
-        mins = X[:,features].min(axis=0)
-        maxs = X[:,features].max(axis=0)
-        mins = list(mins-(maxs-mins)*3/10)
-        maxs = list(maxs+(maxs-mins)*3/10)
-        xx, yy = np.meshgrid(np.linspace(mins[0], maxs[0], resolution), np.linspace(mins[1], maxs[1], resolution))
+            fig, plot = plt.subplots(1, 1, figsize=(10, 10))
+        mins = X[:, features].min(axis=0)
+        maxs = X[:, features].max(axis=0)
+        mins = list(mins - (maxs - mins) * 3 / 10)
+        maxs = list(maxs + (maxs - mins) * 3 / 10)
+        xx, yy = np.meshgrid(
+            np.linspace(mins[0], maxs[0], resolution),
+            np.linspace(mins[1], maxs[1], resolution),
+        )
 
-        means = np.mean(X,axis=0)
+        means = np.mean(X, axis=0)
         feat_0 = xx.ravel()
         feat_1 = yy.ravel()
-        dataset = np.array([x*np.ones(len(feat_0)) for x in means]).T
-        dataset[:,features[0]] = feat_0
-        dataset[:,features[1]] = feat_1        
+        dataset = np.array([x * np.ones(len(feat_0)) for x in means]).T
+        dataset[:, features[0]] = feat_0
+        dataset[:, features[1]] = feat_1
         S1 = self.Anomaly_Score(dataset)
         S1 = S1.reshape(xx.shape)
-        x= X.T[0]
-        y= X.T[1]        
+        x = X.T[0]
+        y = X.T[1]
 
-        levels = np.linspace(np.min(S1),np.max(S1),10)
+        levels = np.linspace(np.min(S1), np.max(S1), 10)
         CS = plot.contourf(xx, yy, S1, levels, cmap=plt.cm.YlOrRd)
-        cb = colorbar(CS, extend='max')
-        cb.ax.set_yticks(fontsize = 12)
-        cb.ax.set_ylabel("Anomaly Score",fontsize = 16)
-        plot.scatter(x,y,s=15,c='None',edgecolor='k')
-        plot.set_title("Anomaly Score scoremap with {} Degree of Freedom".format(self.dims),fontsize = 18)
-        plot.set_xlabel("feature {}".format(features[0]),fontsize = 16)
-        plot.set_ylabel("feature {}".format(features[1]),fontsize = 16)
+        cb = colorbar(CS, extend="max")
+        cb.ax.set_yticks(fontsize=12)
+        cb.ax.set_ylabel("Anomaly Score", fontsize=16)
+        plot.scatter(x, y, s=15, c="None", edgecolor="k")
+        plot.set_title(
+            "Anomaly Score scoremap with {} Degree of Freedom".format(self.dims),
+            fontsize=18,
+        )
+        plot.set_xlabel("feature {}".format(features[0]), fontsize=16)
+        plot.set_ylabel("feature {}".format(features[1]), fontsize=16)
 
-            
-    
-    
-class ExtendedTree():
-    
-    def __init__(self,dims,min_sample,max_depth,plus,seed=None):
-        ''' 
-        Implementation of Isolation Trees for the EIF/EIF_plus models 
+
+class ExtendedTree:
+    def __init__(self, dims, min_sample, max_depth, plus, seed=None):
+        """
+        Implementation of Isolation Trees for the EIF/EIF_plus models
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         dims: int
                 Number of degrees of freedom used in the separating hyperplanes
         min_sample: int
-                Minimum number of samples in a node where isolation is achieved 
+                Minimum number of samples in a node where isolation is achieved
         max_depth: int
                 Maximum depth at which a sample can be considered as isolated
         plus: int
-                This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model 
+                This parameter is used to distinguish the EIF and the EIF_plus models. If plus=0 then the EIF model
                 will be used, if plus=1 than the EIF_plus model will be considered.
-        '''
-        self.dims                   = dims
-        self.min_sample             = min_sample
-        self.max_depth              = max_depth
-        self.depth                  = 0
-        self.right_son              = [0]
-        self.left_son               = [0]
-        self.nodes                  = {}
-        self.plus                   = plus
-        self.seed                   = seed
-        self.num_rand_calls         = 0
-    
-    def make_tree(self,X,id,depth):
-        ''' 
-        Create an Isolation Tree using the separating hyperplanes 
+        """
+        self.dims = dims
+        self.min_sample = min_sample
+        self.max_depth = max_depth
+        self.depth = 0
+        self.right_son = [0]
+        self.left_son = [0]
+        self.nodes = {}
+        self.plus = plus
+        self.seed = seed
+        self.num_rand_calls = 0
+
+        if plus:
+            self.random_bias = lambda val: np.random.normal(
+                np.mean(val), np.std(val) * 2
+            )
+        else:
+            self.random_bias = lambda val: np.random.uniform(np.min(val), np.max(val))
+
+    def make_tree(self, X, id, depth):
+        """
+        Create an Isolation Tree using the separating hyperplanes
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
                 Input dataset
-        id: int 
-                Node index 
-        depth: int 
-                Depth value 
-        
-        N.B The id and depth input parameters are needed because this is a recursive algorithm. At the first call id and depth 
-        will be equal to 0. 
+        id: int
+                Node index
+        depth: int
+                Depth value
 
-        '''
+        N.B The id and depth input parameters are needed because this is a recursive algorithm. At the first call id and depth
+        will be equal to 0.
+
+        """
         if X.shape[0] <= self.min_sample:
-            self.nodes[id] = {"point":None,"normal":None,"numerosity":len(X)}
+            self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
         elif depth >= self.max_depth:
-            self.nodes[id] = {"point":None,"normal":None,"numerosity":len(X)}
+            self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
         else:
-            n = make_rand_vector(self.dims,X.shape[1],self.seed,self.num_rand_calls)
+            n = make_rand_vector(self.dims, X.shape[1], self.seed, self.num_rand_calls)
             self.num_rand_calls += 1
-            
+
             val = X.dot(n)
             if np.random.random() < self.plus:
-                s = np.random.normal(np.mean(val),np.std(val)*2)
+                s = np.random.normal(np.mean(val), np.std(val) * 2)
             else:
-                s = np.random.uniform(np.min(val),np.max(val))
-            
-            lefts = val>s
-                
-            self.nodes[id] = {"point":s,"normal":n,"numerosity":len(X)}
-            
+                s = np.random.uniform(np.min(val), np.max(val))
+
+            lefts = val > s
+
+            self.nodes[id] = {"point": s, "normal": n, "numerosity": len(X)}
+
             idsx = len(self.nodes)
             self.left_son[id] = int(idsx)
             self.right_son.append(0)
             self.left_son.append(0)
-            self.make_tree(X[lefts], idsx, depth+1)
-            
+            self.make_tree(X[lefts], idsx, depth + 1)
+
             iddx = len(self.nodes)
             self.right_son.append(0)
             self.left_son.append(0)
             self.right_son[id] = int(iddx)
-            self.make_tree(X[~lefts], iddx, depth+1)
-    
-    def compute_paths2(self, X, id, true_vec = None):
-        ''' 
-        Compute the path followed by sample from the root to the leaf where it is contained. The result of this 
-        function is used for the Anomaly Score computation.  
+            self.make_tree(X[~lefts], iddx, depth + 1)
+
+    def compute_paths2(self, X, id, true_vec=None):
+        """
+        Compute the path followed by sample from the root to the leaf where it is contained. The result of this
+        function is used for the Anomaly Score computation.
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
                 Input dataset
-        id: int 
-                Node index 
+        id: int
+                Node index
         true_vec: np.array
-                The true_vec array has the same length as X. It is equal to 1 in correspondance of the nodes 
+                The true_vec array has the same length as X. It is equal to 1 in correspondance of the nodes
                 where a sample passed, 0 otherwise.
                 By default the value of true_vec is None
         Returns
         ----------
-        Returns true_vec summed with two recursive calls, one on the left son and one on the right son.   
-        ''' 
-        if id==0:
+        Returns true_vec summed with two recursive calls, one on the left son and one on the right son.
+        """
+        if id == 0:
             true_vec = np.ones(len(X))
         s = self.nodes[id]["point"]
         n = self.nodes[id]["normal"]
 
         if s is None:
-            return true_vec*1
+            return true_vec * 1
         else:
-            val = np.array(X[true_vec==1].dot(n)-s>0)
+            val = np.array(X[true_vec == 1].dot(n) - s > 0)
             lefts = true_vec.copy()
             rights = true_vec.copy()
-            lefts[true_vec==1] = val
-            rights[true_vec==1] = np.logical_not(val)  
-            return true_vec*1 + self.compute_paths2( X, int(self.left_son[id]), true_vec = lefts) + self.compute_paths2( X, int(self.right_son[id]), true_vec = rights)
- 
+            lefts[true_vec == 1] = val
+            rights[true_vec == 1] = np.logical_not(val)
+            return (
+                true_vec * 1
+                + self.compute_paths2(X, int(self.left_son[id]), true_vec=lefts)
+                + self.compute_paths2(X, int(self.right_son[id]), true_vec=rights)
+            )
+
     def compute_paths(self, X):
-        ''' 
-        Alternative method to compute the path followed by sample from the root to the leaf where it is contained. The result of this 
-        function is used for the Anomaly Score computation.  
-        This function is the iterative version of the compute_paths2 function. 
+        """
+        Alternative method to compute the path followed by sample from the root to the leaf where it is contained. The result of this
+        function is used for the Anomaly Score computation.
+        This function is the iterative version of the compute_paths2 function.
         --------------------------------------------------------------------------------
-        
+
         Parameters
         ----------
         X: pd.DataFrame
-                Input dataset   
+                Input dataset
         Returns
         ----------
         paths: List
-                List of nodes encountered by a sample in its path towards the leaf in which it is contained.       
-        ''' 
+                List of nodes encountered by a sample in its path towards the leaf in which it is contained.
+        """
 
         def path(x):
-            id=0    
-            k=1
-            s = self.nodes[id]["point"]
-            n = self.nodes[id]["normal"]
+            k = 1
+            id = s = 0
             while s is not None:
-                val = x.dot(n)-s>0
-                if val:
+                s = self.nodes[id]["point"]
+                n = self.nodes[id]["normal"]
+                if x.dot(n) - s > 0:
                     id = self.left_son[id]
                 else:
                     id = self.right_son[id]
-                s = self.nodes[id]["point"]
-                n = self.nodes[id]["normal"]
-                k+=1
+                k += 1
             return k
 
-
-        # paths = []
-        # for x in X:
-        #     k = path(x)
-        #     paths.append(k)
-
-        # instead of doing the for loop, use np.apply_along_axis
-        # paths = np.apply_along_axis(path, 1, X)
-
         return np.apply_along_axis(path, 1, X)
-    
-    ''' 
+
+    """ 
     def predict(self,X, algorithm = 1):
         mean_path = np.zeros(len(X))
         if algorithm == 1:
@@ -380,4 +407,4 @@ class ExtendedTree():
         c = c_factor(len(X))
             
         return 2**(-mean_path/c)
-    '''
+    """
