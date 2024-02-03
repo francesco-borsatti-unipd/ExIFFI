@@ -266,12 +266,18 @@ class ExtendedTree:
         self.seed = seed
         self.num_rand_calls = 0
 
-        if plus:
+        if plus == 1:
             self.random_bias = lambda val: np.random.normal(
                 np.mean(val), np.std(val) * 2
             )
-        else:
+        elif plus == 0:
             self.random_bias = lambda val: np.random.uniform(np.min(val), np.max(val))
+        else:
+            self.random_bias = (
+                lambda val: np.random.normal(np.mean(val), np.std(val) * 2)
+                if np.random.random() < plus
+                else np.random.uniform(np.min(val), np.max(val))
+            )
 
     def make_tree(self, X, id, depth):
         """
@@ -300,11 +306,7 @@ class ExtendedTree:
             self.num_rand_calls += 1
 
             val = X.dot(n)
-            if np.random.random() < self.plus:
-                s = np.random.normal(np.mean(val), np.std(val) * 2)
-            else:
-                s = np.random.uniform(np.min(val), np.max(val))
-
+            s = self.random_bias(val)
             lefts = val > s
 
             self.nodes[id] = {"point": s, "normal": n, "numerosity": len(X)}
