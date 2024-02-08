@@ -108,7 +108,7 @@ def pre_process(path):
     X_test = scaler.transform(X_test)
     X_test = np.r_[X_train, X_test]
 
-    return X_train, X_test
+    return X_train.astype(np.float64), X_test.astype(np.float64)
 
 
 def compute_imps(model, X_train, X_test, n_runs):

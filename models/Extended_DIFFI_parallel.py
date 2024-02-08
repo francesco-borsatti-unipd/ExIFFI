@@ -90,19 +90,6 @@ class Extended_DIFFI_tree(ExtendedTree):
         # multicore processing
         num_processes = 1  ####################################################
 
-        # dump nodes=self.nodes, left_son=self.left_son, right_son=self.right_son
-        # to a file : nodes.pkl
-        with open("nodes_wine.pkl", "wb") as f:
-            pickle.dump(
-                {
-                    "nodes": self.nodes,
-                    "left_son": self.left_son,
-                    "right_son": self.right_son,
-                    "X": X,
-                },
-                f,
-            )
-
         if num_processes > 1:
             partial_importance_worker = partial(
                 self.importance_worker,
