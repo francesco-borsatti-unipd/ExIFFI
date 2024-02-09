@@ -23,7 +23,6 @@ c_compute_paths.argtypes = [
     ctypes.POINTER(Node),  # nodes array
     np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),  # left_son
     np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),  # right_son
-    ctypes.c_int,  # number of nodes (also number of left and right sons)
     ctypes.c_int,  # number of rows
     ctypes.c_int,  # number of columns
     np.ctypeslib.ndpointer(
@@ -44,7 +43,6 @@ c_importance.argtypes = (
     ctypes.c_bool,  # depth_based
     np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),  # left_son
     np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),  # right_son
-    ctypes.c_int,  # number of nodes (also number of left and right sons)
     ctypes.c_int,  # number of rows
     ctypes.c_int,  # number of columns
     np.ctypeslib.ndpointer(

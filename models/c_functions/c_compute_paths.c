@@ -18,7 +18,6 @@ void compute_paths(
     struct Node *nodes,
     int *left_son,
     int *right_son,
-    int num_nodes,
     int X_rows,
     int X_cols, // number of features
     int *computed_paths)

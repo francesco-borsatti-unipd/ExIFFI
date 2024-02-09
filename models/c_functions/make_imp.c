@@ -55,7 +55,6 @@ void importance_worker(
     bool depth_based,
     int *left_son,
     int *right_son,
-    int num_nodes,
     int X_rows,
     int X_cols, // number of features
     double *Importances_list,
