@@ -2,4 +2,4 @@
 results
 *.npz
 *.pkl
-models/test_c_exiffi.py
+models/test_c_ExIF.py

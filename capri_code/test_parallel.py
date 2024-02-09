@@ -215,18 +215,20 @@ def test_exiffi(
         print("Execution 1")
         start = time.time()
 
-        seed = None if seed is None else seed + i * n_trees
+        if seed is not None:
+            seed += 1
+            np.random.seed(seed)
 
         if parallel:
             print("Set up Extended_DIFFI_parallel")
             EDIFFI = Extended_DIFFI_parallel(
-                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1
             )
             EDIFFI.set_num_processes(n_cores_fit, n_cores_importance, n_cores_anomaly)
             print("Finished setting up Extended_DIFFI_parallel")
         else:
             EDIFFI = Extended_DIFFI_original(
-                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1, seed=seed
+                n_trees=n_trees, max_depth=100, subsample_size=256, plus=1
             )
 
         print("Call compute_imps")
