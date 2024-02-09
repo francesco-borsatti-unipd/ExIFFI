@@ -6,7 +6,6 @@ import sys
 import ctypes
 from functools import partial
 from multiprocessing import Pool
-from tqdm import tqdm
 
 sys.path.append("../")
 from utils.utils import make_rand_vector, c_factor
@@ -229,14 +228,6 @@ class ExtendedIF:
         self.seed = seed
         self.num_processes_anomaly = num_processes_anomaly
 
-        if (
-            seed is not None
-        ):  # DEBUG ################################################################################
-            np.random.seed(
-                seed
-            )  # DEBUG ################################################################################
-            self.seed = None  # DEBUG ################################################################################
-
     def fit(self, X):
         """
         Fit the EIF/EIF_plus model.
@@ -270,7 +261,7 @@ class ExtendedIF:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in tqdm(enumerate(self.forest)):
+        for i, x in enumerate(self.forest):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
@@ -447,14 +438,6 @@ class ExtendedTree_c:
         self.seed = seed
         self.num_rand_calls = 0
 
-        if (
-            seed is not None
-        ):  # DEBUG ################################################################################
-            np.random.seed(
-                seed
-            )  # DEBUG ################################################################################
-            self.seed = None  # DEBUG ################################################################################
-
     @staticmethod
     def nodes_to_c_array(nodes, dest_arr, num_features: int):
         """
@@ -567,7 +550,6 @@ class ExtendedTree_c:
         paths: List
                 List of nodes encountered by a sample in its path towards the leaf in which it is contained.
         """
-
         paths = np.zeros(X.shape[0], dtype=np.int32)
         c_X_rows, c_X_cols = ctypes.c_int(X.shape[0]), ctypes.c_int(X.shape[1])
         X = X.astype(np.float64).flatten()
@@ -664,7 +646,7 @@ class ExtendedIF_c:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in tqdm(enumerate(self.forest)):
+        for i, x in enumerate(self.forest):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
