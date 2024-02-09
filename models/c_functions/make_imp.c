@@ -69,19 +69,17 @@ void importance_worker(
                *curr_norm = Normal_vectors_list + i * X_cols,
                *curr_X = X + i * X_cols;
 
-        int id = 0, depth = 0;
+        int id = 0, father_id = 0, depth = 0;
         while (true) // add a max number of iterations to avoid infinite loops?
         {
-            // if this is a leaf, stop
             if (nodes[id].is_leaf)
                 break;
 
-            int father_numerosity = nodes[id].numerosity;
-            double *normal = nodes[id].normal;
-
             // dot product between x sample and current normal vector
-            double dot = dot_product(curr_X, normal, X_cols);
+            double dot = dot_product(curr_X, nodes[id].normal, X_cols);
+            father_id = id;
 
+            // compute which side of the hyperplane the sample is
             if (dot - nodes[id].point > 0)
                 id = left_son[id];
             else
@@ -89,11 +87,11 @@ void importance_worker(
 
             // update the importance and normal vectors arrays
             single_imp_and_abs_vec(
-                normal,
+                nodes[father_id].normal,
                 curr_imp,
                 curr_norm,
                 X_cols,
-                father_numerosity,
+                nodes[father_id].numerosity,
                 nodes[id].numerosity,
                 depth_based,
                 depth);

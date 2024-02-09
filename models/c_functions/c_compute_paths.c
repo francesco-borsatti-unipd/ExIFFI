@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include "common.h"
 
-
 /**
  * @brief
  *
@@ -12,55 +11,33 @@
  * @param X_rows: number of rows of X, which is the number of SAMPLES in the dataset
  * @param X_cols: number of columns of X, which is the number of FEATURES in the dataset
  *
- * @return Void.
+ * @return Void. The computed paths are stored in the given computed_paths array.
  */
 void compute_paths(
     double *X,
     struct Node *nodes,
-    bool depth_based,
     int *left_son,
     int *right_son,
     int num_nodes,
     int X_rows,
     int X_cols, // number of features
-    double *Importances_list,
-    double *Normal_vectors_list)
+    int *computed_paths)
 {
     const int len = X_cols * X_rows;
 #pragma omp parallel for shared(X, nodes, left_son, right_son) schedule(dynamic)
     for (int i = 0; i < X_rows; i++)
     {
-        double *curr_X = X + i * X_cols;
-
-        int id = 0;
+        int id = 0, k = 1;
         while (true) // add a max number of iterations to avoid infinite loops?
         {
-            // if this is a leaf, stop
             if (nodes[id].is_leaf)
                 break;
-
-            double *normal = nodes[id].normal;
-
             // dot product between x sample and current normal vector
-            double dot = dot_product(curr_X, normal, X_cols);
-
-            if (dot - nodes[id].point > 0)
-                id = left_son[id];
-            else
-                id = right_son[id];
-
-            // update the importance and normal vectors arrays
-            single_imp_and_abs_vec(
-                normal,
-                curr_imp,
-                curr_norm,
-                X_cols,
-                father_numerosity,
-                nodes[id].numerosity,
-                depth_based,
-                depth);
-
-            depth++;
+            double dot = dot_product(&X[i * X_cols], nodes[id].normal, X_cols);
+            // compute which side of the hyperplane the sample is
+            id = (dot - nodes[id].point > 0) ? left_son[id] : right_son[id];
+            k++;
         }
+        computed_paths[i] = k;
     }
 }
