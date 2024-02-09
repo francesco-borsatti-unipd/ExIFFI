@@ -1,6 +1,7 @@
+import os
 import ctypes
 import numpy as np
-
+from glob import glob
 
 class Node(ctypes.Structure):
     """
@@ -14,8 +15,12 @@ class Node(ctypes.Structure):
         ("is_leaf", ctypes.c_bool),
     ]
 
+p = os.path.dirname(os.path.abspath(__file__))
+
 # compute paths function
-lib = ctypes.CDLL("c_functions/c_compute_paths.so")
+lib_path = glob(os.path.join(p, "c_compute_paths.so"))
+assert lib_path, f"c_compute_paths.so not found in path {p}"
+lib = ctypes.CDLL(lib_path[0])
 c_compute_paths = lib.compute_paths
 c_compute_paths.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),  # dataset
@@ -32,7 +37,9 @@ c_compute_paths.restype = ctypes.c_void_p
 
 
 # make importance function
-lib = ctypes.CDLL("c_functions/c_make_importance.so")
+lib_path = glob(os.path.join(p, "c_make_importance.so"))
+assert lib_path, f"c_make_importance.so not found in path {p}"
+lib = ctypes.CDLL(lib_path[0])
 c_importance = lib.importance_worker
 
 # define the C function signature

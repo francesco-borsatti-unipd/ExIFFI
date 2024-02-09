@@ -3,20 +3,26 @@ Extended Isolation Forest model
 """
 
 import sys
+import os
+
+p = os.path.dirname(os.path.abspath(__file__))
+p = os.path.dirname(p)
+sys.path.append(p)
+
 import ctypes
 from functools import partial
 from multiprocessing import Pool
 
-sys.path.append("../")
 from utils.utils import make_rand_vector, c_factor
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
-from c_functions.c_functions import c_compute_paths, Node
+
+from models.c_functions.c_functions import c_compute_paths, Node
 
 
 class ExtendedTree:
-    def __init__(self, dims, min_sample, max_depth, plus, seed=None):
+    def __init__(self, dims, min_sample, max_depth, plus):
         """
         Implementation of Isolation Trees for the EIF/EIF_plus models
         --------------------------------------------------------------------------------
@@ -41,8 +47,6 @@ class ExtendedTree:
         self.left_son = [0]
         self.nodes = {}
         self.plus = plus
-        self.seed = seed
-        self.num_rand_calls = 0
 
     def make_tree(self, X, id, depth):
         """
@@ -67,8 +71,7 @@ class ExtendedTree:
         elif depth >= self.max_depth:
             self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
         else:
-            n = make_rand_vector(self.dims, X.shape[1], self.seed, self.num_rand_calls)
-            self.num_rand_calls += 1
+            n = make_rand_vector(self.dims, X.shape[1])
 
             val = X.dot(n)
             s = (
@@ -215,7 +218,6 @@ class ExtendedIF:
         dims=None,
         subsample_size=None,
         plus=1,
-        seed=None,
         num_processes_anomaly=1,
     ):
         self.n_trees = n_trees
@@ -225,7 +227,6 @@ class ExtendedIF:
         self.subsample_size = subsample_size
         self.forest = None
         self.plus = plus
-        self.seed = seed
         self.num_processes_anomaly = num_processes_anomaly
 
     def fit(self, X):
@@ -249,9 +250,7 @@ class ExtendedIF:
             self.max_depth = np.inf
 
         self.forest = [
-            ExtendedTree(
-                self.dims, self.min_sample, self.max_depth, self.plus, self.seed
-            )
+            ExtendedTree(self.dims, self.min_sample, self.max_depth, self.plus)
             for i in range(self.n_trees)
         ]
 
@@ -408,9 +407,7 @@ class ExtendedIF:
 
 
 class ExtendedTree_c:
-    def __init__(
-        self, dims: int, min_sample: int, max_depth: int, plus: int, seed=None
-    ):
+    def __init__(self, dims: int, min_sample: int, max_depth: int, plus: int):
         """
         Implementation of Isolation Trees for the EIF/EIF_plus models
         --------------------------------------------------------------------------------
@@ -435,8 +432,6 @@ class ExtendedTree_c:
         self.left_son = [0]
         self.nodes = {}
         self.plus = plus
-        self.seed = seed
-        self.num_rand_calls = 0
 
     @staticmethod
     def nodes_to_c_array(nodes, dest_arr, num_features: int):
@@ -509,8 +504,7 @@ class ExtendedTree_c:
             # reached leaf
             self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
         else:
-            n = make_rand_vector(self.dims, X.shape[1], self.seed, self.num_rand_calls)
-            self.num_rand_calls += 1
+            n = make_rand_vector(self.dims, X.shape[1])
 
             val = X.dot(n)
             s = (
@@ -599,7 +593,6 @@ class ExtendedIF_c:
         dims=None,
         subsample_size=None,
         plus=1,
-        seed=None,
         num_processes_anomaly=1,
     ):
         self.n_trees = n_trees
@@ -609,7 +602,6 @@ class ExtendedIF_c:
         self.subsample_size = subsample_size
         self.forest = None
         self.plus = plus
-        self.seed = seed
         self.num_processes_anomaly = num_processes_anomaly
         if not self.min_sample:
             self.min_sample = 1
@@ -634,9 +626,7 @@ class ExtendedIF_c:
             self.dims = X.shape[1]
 
         self.forest = [
-            ExtendedTree_c(
-                self.dims, self.min_sample, self.max_depth, self.plus, self.seed
-            )
+            ExtendedTree_c(self.dims, self.min_sample, self.max_depth, self.plus)
             for i in range(self.n_trees)
         ]
 
