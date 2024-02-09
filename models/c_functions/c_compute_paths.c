@@ -1,3 +1,6 @@
+// To compile:
+// $ gcc -fopenmp -O2 -fPIC -shared -o c_compute_paths.so c_compute_paths.c
+
 #include <stdbool.h>
 #include "common.h"
 
@@ -22,7 +25,6 @@ void compute_paths(
     int X_cols, // number of features
     int *computed_paths)
 {
-    const int len = X_cols * X_rows;
 #pragma omp parallel for shared(X, nodes, left_son, right_son) schedule(dynamic)
     for (int i = 0; i < X_rows; i++)
     {

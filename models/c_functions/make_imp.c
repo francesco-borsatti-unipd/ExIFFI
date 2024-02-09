@@ -1,6 +1,5 @@
 // Normal compilation: gcc -fopenmp -fPIC -shared -o c_make_importance.so make_imp.c
 // Optimized compilation: gcc -O2 -fopenmp -fPIC -shared -o c_make_importance.so make_imp.c
-// For best performance: gcc -fopenmp -O2 -fPIC -shared -o c_make_importance.so make_imp.c
 
 #include <math.h>
 #include <stdio.h>
@@ -60,7 +59,6 @@ void importance_worker(
     double *Importances_list,
     double *Normal_vectors_list)
 {
-    const int len = X_cols * X_rows;
 #pragma omp parallel for shared(X, nodes, left_son, right_son) schedule(dynamic)
     for (int i = 0; i < X_rows; i++)
     {
@@ -79,10 +77,7 @@ void importance_worker(
             father_id = id;
 
             // compute which side of the hyperplane the sample is
-            if (dot - nodes[id].point > 0)
-                id = left_son[id];
-            else
-                id = right_son[id];
+            id = (dot - nodes[id].point > 0) ? left_son[id] : right_son[id];
 
             // update the importance and normal vectors arrays
             single_imp_and_abs_vec(

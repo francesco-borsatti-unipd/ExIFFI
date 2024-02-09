@@ -64,14 +64,17 @@ def convert2c_paths_args(X, nodes, left_son, right_son, c_paths):
         c_paths,
     )
 
+
 def c_compute_paths_wrapper(X, nodes, left_son, right_son):
     paths = np.zeros(X.shape[0], dtype=np.int32)
     args = convert2c_paths_args(X, nodes, left_son, right_son, paths)
     return c_compute_paths_wrapper_clean(args)
 
+
 def c_compute_paths_wrapper_clean(args):
     c_compute_paths(*args)
     return args[-1]
+
 
 def py_compute_paths_wrapper(
     X: np.ndarray, nodes, left_son: np.ndarray, right_son: np.ndarray

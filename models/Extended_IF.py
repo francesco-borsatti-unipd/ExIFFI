@@ -405,10 +405,6 @@ class ExtendedIF:
         plot.set_ylabel("feature {}".format(features[1]), fontsize=16)
 
 
-# import C function
-from c_functions.c_functions import c_compute_paths
-
-
 class ExtendedTree_c:
     def __init__(
         self, dims: int, min_sample: int, max_depth: int, plus: int, seed=None
@@ -610,10 +606,9 @@ class ExtendedIF_c:
 
     @staticmethod
     def segment_sum(segment: list[ExtendedTree_c], X):
-        part_sum = np.sum([tree.compute_paths(X) for tree in segment], axis=0)
-        return part_sum
+        return np.sum([tree.compute_paths(X) for tree in segment], axis=0)
 
-    def Anomaly_Score(self, X, algorithm=1):
+    def Anomaly_Score(self, X):
         """
         Compute the Anomaly Score for an input dataset
         --------------------------------------------------------------------------------
@@ -622,9 +617,6 @@ class ExtendedIF_c:
         ----------
         X: pd.DataFrame
                 Input dataset
-        algorithm: int
-                This variable is used to decide weather to use the compute_paths or compute_paths2 function in the computation of the
-                Anomaly Scores.
         Returns
         ----------
         Returns the Anomaly Scores of all the samples contained in the input dataset X.
