@@ -14,9 +14,8 @@ class Node(ctypes.Structure):
         ("is_leaf", ctypes.c_bool),
     ]
 
-
 # compute paths function
-lib = ctypes.CDLL("./c_compute_paths.so")
+lib = ctypes.CDLL("c_functions/c_compute_paths.so")
 c_compute_paths = lib.compute_paths
 c_compute_paths.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),  # dataset
@@ -33,7 +32,7 @@ c_compute_paths.restype = ctypes.c_void_p
 
 
 # make importance function
-lib = ctypes.CDLL("./c_make_importance.so")
+lib = ctypes.CDLL("c_functions/c_make_importance.so")
 c_importance = lib.importance_worker
 
 # define the C function signature

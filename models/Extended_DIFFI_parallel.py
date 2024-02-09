@@ -413,3 +413,4 @@ class Extended_DIFFI_parallel(ExtendedIF):
             X, calculate, overwrite, depth_based
         )
         return importances_matrix / normal_vectors_matrix
+

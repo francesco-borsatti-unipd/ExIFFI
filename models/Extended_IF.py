@@ -3,14 +3,17 @@ Extended Isolation Forest model
 """
 
 import sys
+import ctypes
 from functools import partial
 from multiprocessing import Pool
+from tqdm import tqdm
 
 sys.path.append("../")
 from utils.utils import make_rand_vector, c_factor
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
+from c_functions.c_functions import c_compute_paths, Node
 
 
 class ExtendedTree:
@@ -226,6 +229,14 @@ class ExtendedIF:
         self.seed = seed
         self.num_processes_anomaly = num_processes_anomaly
 
+        if (
+            seed is not None
+        ):  # DEBUG ################################################################################
+            np.random.seed(
+                seed
+            )  # DEBUG ################################################################################
+            self.seed = None  # DEBUG ################################################################################
+
     def fit(self, X):
         """
         Fit the EIF/EIF_plus model.
@@ -259,7 +270,7 @@ class ExtendedIF:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in enumerate(self.forest):
+        for i, x in tqdm(enumerate(self.forest)):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
@@ -436,6 +447,63 @@ class ExtendedTree_c:
         self.seed = seed
         self.num_rand_calls = 0
 
+        if (
+            seed is not None
+        ):  # DEBUG ################################################################################
+            np.random.seed(
+                seed
+            )  # DEBUG ################################################################################
+            self.seed = None  # DEBUG ################################################################################
+
+    @staticmethod
+    def nodes_to_c_array(nodes, dest_arr, num_features: int):
+        """
+        Convert node dictionary to a ctypes array of Node structure instances.
+        Nodes example:
+        ```
+        nodes = {
+        0:{"point":0.11123, "normal":[12,3,3,5], "numerosity":45},
+        1:{"point":0.11123, "normal":[12,3,3,5], "numerosity":45}},
+        2:{....},
+        }
+        ```
+        Parameters:
+        - nodes: dictionary of dictionaries. The keys are the node ids and the values
+            are dictionaries containing the node information.
+        - dest_arr: a ctypes array of Node structure instances.
+        """
+        for i, node in nodes.items():
+            dest_arr[i].numerosity = ctypes.c_int(node["numerosity"])
+            dest_arr[i].is_leaf = ctypes.c_bool(node["point"] is None)
+            # allocate the memory for the normal array
+            dest_arr[i].normal = (ctypes.c_double * num_features)()
+            if node["point"] is None:
+                continue
+            else:
+                dest_arr[i].point = ctypes.c_double(node["point"])
+                dest_arr[i].normal = (ctypes.c_double * num_features)(*node["normal"])
+
+    def convert_to_c_data(self):
+        # --- Create the data structures for the C function ---
+        # convert the nodes dictionary to a ctypes array of Node structure instances
+        NodeArray = Node * len(self.nodes)
+        c_node_arr = NodeArray()
+
+        if self.dims:
+            X_cols = self.dims
+        else:
+            X_cols = len(self.nodes[0]["normal"])
+
+        ExtendedTree_c.nodes_to_c_array(self.nodes, c_node_arr, X_cols)
+
+        # convert the lists in numpy arrays
+        c_left_son = np.array(self.left_son, dtype=np.int32)
+        c_right_son = np.array(self.right_son, dtype=np.int32)
+
+        self.c_node_arr = c_node_arr
+        self.c_left_son = c_left_son
+        self.c_right_son = c_right_son
+
     def make_tree(self, X: np.ndarray, id: int, depth: int):
         """
         Create an Isolation Tree using the separating hyperplanes
@@ -454,9 +522,8 @@ class ExtendedTree_c:
         will be equal to 0.
 
         """
-        if X.shape[0] <= self.min_sample:
-            self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
-        elif depth >= self.max_depth:
+        if X.shape[0] <= self.min_sample or depth >= self.max_depth:
+            # reached leaf
             self.nodes[id] = {"point": None, "normal": None, "numerosity": len(X)}
         else:
             n = make_rand_vector(self.dims, X.shape[1], self.seed, self.num_rand_calls)
@@ -501,22 +568,21 @@ class ExtendedTree_c:
                 List of nodes encountered by a sample in its path towards the leaf in which it is contained.
         """
 
-        def path(x):
-            k = 1
-            id = 0
-            while True:
-                s = self.nodes[id]["point"]
-                if s is None:
-                    break
-                n = self.nodes[id]["normal"]
-                if x.dot(n) - s > 0:
-                    id = self.left_son[id]
-                else:
-                    id = self.right_son[id]
-                k += 1
-            return k
+        paths = np.zeros(X.shape[0], dtype=np.int32)
+        c_X_rows, c_X_cols = ctypes.c_int(X.shape[0]), ctypes.c_int(X.shape[1])
+        X = X.astype(np.float64).flatten()
 
-        return np.apply_along_axis(path, 1, X)
+        c_compute_paths(
+            X,
+            self.c_node_arr,
+            self.c_left_son,
+            self.c_right_son,
+            c_X_rows,
+            c_X_cols,
+            paths,
+        )
+
+        return paths
 
 
 class ExtendedIF_c:
@@ -563,6 +629,10 @@ class ExtendedIF_c:
         self.plus = plus
         self.seed = seed
         self.num_processes_anomaly = num_processes_anomaly
+        if not self.min_sample:
+            self.min_sample = 1
+        if not self.max_depth:
+            self.max_depth = np.inf
 
     def fit(self, X):
         """
@@ -577,15 +647,12 @@ class ExtendedIF_c:
         ----------
 
         """
+
         if not self.dims:
             self.dims = X.shape[1]
-        if not self.min_sample:
-            self.min_sample = 1
-        if not self.max_depth:
-            self.max_depth = np.inf
 
         self.forest = [
-            ExtendedTree(
+            ExtendedTree_c(
                 self.dims, self.min_sample, self.max_depth, self.plus, self.seed
             )
             for i in range(self.n_trees)
@@ -597,12 +664,14 @@ class ExtendedIF_c:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in enumerate(self.forest):
+        for i, x in tqdm(enumerate(self.forest)):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
                 X_sub = X.view()[subsets_idxs[i], :]
                 x.make_tree(X_sub, 0, 0)
+
+            x.convert_to_c_data()
 
     @staticmethod
     def segment_sum(segment: list[ExtendedTree_c], X):

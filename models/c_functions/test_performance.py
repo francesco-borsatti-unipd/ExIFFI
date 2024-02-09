@@ -52,7 +52,6 @@ def convert2c_paths_args(X, nodes, left_son, right_son, c_paths):
     c_right_son = np.array(right_son, dtype=np.int32)
 
     c_X_rows, c_X_cols = ctypes.c_int(X_rows), ctypes.c_int(X_cols)
-    c_num_nodes = ctypes.c_int(nodes_len)
 
     return (
         c_X,
