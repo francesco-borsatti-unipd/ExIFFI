@@ -2,3 +2,5 @@
 results
 *.npz
 *.pkl
+
+models/c_functions/test_performance.py
