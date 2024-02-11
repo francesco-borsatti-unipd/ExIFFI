@@ -2,7 +2,7 @@ import ctypes
 import timeit
 import pickle as pkl
 import numpy as np
-from c_functions import c_compute_paths, Node
+from c_signatures import c_compute_paths, Node
 
 
 def nodes_to_c_array(nodes, dest_arr, num_features: int):

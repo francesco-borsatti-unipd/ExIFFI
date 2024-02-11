@@ -1,5 +1,5 @@
 // Normal compilation: gcc -fopenmp -fPIC -shared -o c_make_importance.so make_imp.c
-// Optimized compilation: gcc -O2 -fopenmp -fPIC -shared -o c_make_importance.so make_imp.c
+// Optimized compilation: gcc -O2 -fopenmp -fPIC -shared -o c_make_importance.so c_make_importance.c
 
 #include <math.h>
 #include <stdio.h>

@@ -19,7 +19,7 @@ warnings.simplefilter(action="ignore", category=RuntimeWarning)
 
 def make_rand_vector(df, dimensions):
     """
-    Random unitary vector in the unit ball with max number of dimensions
+    Random unitary vector in the unit sphere with max number of dimensions
     --------------------------------------------------------------------------------
 
     Parameters
