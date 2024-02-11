@@ -31,7 +31,7 @@ def barplot(name:str,df:pd.DataFrame,x_col:str,y_col:str,ylim_off:int=0,color=No
     plt.ylim(0,ylim+ylim_off)
     return ax
 
-def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=10,remove_xticks=False):
+def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=10,remove_xticks=False,rotate_xticks=False):
     ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax)
     ylim = df[y_col].max() 
     ax.set_xlabel(x_col)
@@ -44,6 +44,8 @@ def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=10,remove_xticks=False)
 
     if remove_xticks:
         ax.set_xticks([])
+    if rotate_xticks:
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
     ax.set_ylim(0, ylim + ylim_off)
     return ax
 
@@ -182,3 +184,27 @@ def time_eff_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=1
 
     plt.tight_layout()
     plt.show()
+
+"""
+Plot dataset names versus cpu efficiency for different number of cores 
+"""
+
+def cpu_eff_plot(data,n_cores,n_trees):
+    # Group by n_cores and n_trees and sort values by cpu_efficiency
+    df=data.groupby(['n_cores_anomaly','n_trees']).get_group((n_cores,n_trees))
+    df.sort_values(by='cpu_efficiency',ascending=True,inplace=True)
+
+    # Remove duplicate rows keeping the one with the highest cpu_efficiency
+    df.sort_values(by=['name','cpu_efficiency'],ascending=[False,False],inplace=True)
+    df.drop_duplicates(subset=['name'],keep='first',inplace=True)
+
+    # Reorder rows by increasing order of dataset complexity
+    order=['wine','glass','pima','breastw','ionosphere','cardio','annthyroid','pendigits','diabetes','shuttle','moodify']
+    df['name']=pd.Categorical(df['name'],categories=order,ordered=True)
+    df.sort_values('name',inplace=True)
+
+    # Obtain the barplot using barplot_subplots function
+    fig,ax=plt.subplots(1,1,figsize=(10,8))
+    ax=barplot_subplots(ax,f'CPU Efficiency {n_trees} trees {n_cores} cores',df,'name','cpu_efficiency',rotate_xticks=True)
+
+    return ax
