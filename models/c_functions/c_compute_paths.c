@@ -25,11 +25,11 @@ void compute_paths(
     int X_cols, // number of features
     int *computed_paths)
 {
-#pragma omp parallel for shared(X, nodes, left_son, right_son) schedule(dynamic)
+#pragma omp parallel for
     for (int i = 0; i < X_rows; i++)
     {
         int id = 0, k = 1;
-        while (true) // add a max number of iterations to avoid infinite loops?
+        while (true)
         {
             if (nodes[id].is_leaf)
                 break;

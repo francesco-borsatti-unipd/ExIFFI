@@ -1,6 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdbool.h>
+
 struct Node
 {
     double point;   // scalar offset along the normal to identify the hiperplane cut
@@ -19,6 +21,8 @@ inline double dot_product(double *a, double *b, int n)
     return result;
 }
 
+void compute_paths(double *, struct Node *, int *, int *, int, int, int *);
 
+void anomaly_score(double *X, struct Node **, int **, int **, int, int, int, double *);
 
 #endif // COMMON_H

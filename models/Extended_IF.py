@@ -4,6 +4,7 @@ Extended Isolation Forest model
 
 import sys
 import os
+from typing import Optional, Any
 
 p = os.path.dirname(os.path.abspath(__file__))
 p = os.path.dirname(p)
@@ -12,13 +13,14 @@ sys.path.append(p)
 import ctypes
 from functools import partial
 from multiprocessing import Pool
+import numpy.typing as npt
 
 from utils.utils import make_rand_vector, c_factor
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
 
-from models.c_functions.c_functions import c_compute_paths, Node
+from models.c_functions import Node, c_compute_paths, c_anomaly_score
 
 
 class ExtendedTree:
@@ -528,25 +530,28 @@ class ExtendedTree_c:
             self.right_son[id] = int(iddx)
             self.make_tree(X[~lefts], iddx, depth + 1)
 
-    def compute_paths(self, X: np.ndarray):
+    def compute_paths(
+        self,
+        X: npt.NDArray[np.float64],
+        X_shape: tuple[int, int],
+        paths: Optional[npt.NDArray[np.int32]] = None,
+    ):
         """
-        Alternative method to compute the path followed by sample from the root to the leaf where it is contained. The result of this
-        function is used for the Anomaly Score computation.
-        This function is the iterative version of the compute_paths2 function.
-        --------------------------------------------------------------------------------
+        Alternative method to compute the path followed by sample from the root to the leaf where it is contained.
+        The result of this function is used for the Anomaly Score computation.
 
         Parameters
-        ----------
-        X: pd.DataFrame
-                Input dataset
+            X: flattened numpy array of the input dataset
+            c_X_cols: number of columns of the input dataset
+            c_X_rows: number of rows of the input dataset
+
         Returns
-        ----------
-        paths: List
-                List of nodes encountered by a sample in its path towards the leaf in which it is contained.
+            paths: np array of nodes encountered by a sample in its path towards the leaf in which it is contained.
         """
-        paths = np.zeros(X.shape[0], dtype=np.int32)
-        c_X_rows, c_X_cols = ctypes.c_int(X.shape[0]), ctypes.c_int(X.shape[1])
-        X = X.astype(np.float64).flatten()
+        c_X_rows, c_X_cols = ctypes.c_int(X_shape[0]), ctypes.c_int(X_shape[1])
+
+        if not paths:
+            paths = np.zeros(X_shape[0], dtype=np.int32)
 
         c_compute_paths(
             X,
@@ -603,10 +608,6 @@ class ExtendedIF_c:
         self.forest = None
         self.plus = plus
         self.num_processes_anomaly = num_processes_anomaly
-        if not self.min_sample:
-            self.min_sample = 1
-        if not self.max_depth:
-            self.max_depth = np.inf
 
     def fit(self, X):
         """
@@ -621,7 +622,10 @@ class ExtendedIF_c:
         ----------
 
         """
-
+        if not self.min_sample:
+            self.min_sample = 1
+        if not self.max_depth:
+            self.max_depth = sys.maxsize
         if not self.dims:
             self.dims = X.shape[1]
 
@@ -645,9 +649,48 @@ class ExtendedIF_c:
 
             x.convert_to_c_data()
 
-    @staticmethod
-    def segment_sum(segment: list[ExtendedTree_c], X):
-        return np.sum([tree.compute_paths(X) for tree in segment], axis=0)
+    def c_AnomalyScore(self, X: npt.NDArray):
+        assert self.forest is not None, "The model has not been fitted yet."
+        # dataset to be used in the C function
+        c_X = X.astype(np.float64).flatten()
+        # convert the nodes array to a ctypes array of Node structure instances
+        node_lst = [tree.c_node_arr for tree in self.forest]
+        c_node_arr = (ctypes.POINTER(Node) * len(node_lst))(*node_lst)
+        # left son array
+        left_son_lst = [
+            tree.c_left_son.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
+            for tree in self.forest
+        ]
+        c_left_son = (ctypes.POINTER(ctypes.c_int) * len(left_son_lst))(*left_son_lst)
+        # right son array
+        right_son_lst = [
+            tree.c_right_son.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
+            for tree in self.forest
+        ]
+        c_right_son = (ctypes.POINTER(ctypes.c_int) * len(right_son_lst))(
+            *right_son_lst
+        )
+        # num trees
+        num_trees = ctypes.c_int(int(len(self.forest)))
+        # num rows
+        num_rows = ctypes.c_int(int(X.shape[0]))
+        # num cols
+        num_cols = ctypes.c_int(int(X.shape[1]))
+        # result array
+        anomaly_scores = np.zeros(len(X), dtype=np.float64)
+
+        c_anomaly_score(
+            c_X,
+            c_node_arr,
+            c_left_son,
+            c_right_son,
+            num_trees,
+            num_rows,
+            num_cols,
+            anomaly_scores,
+        )
+
+        return anomaly_scores
 
     def Anomaly_Score(self, X):
         """
@@ -667,24 +710,10 @@ class ExtendedIF_c:
             self.forest is not None
         ), "The model has not been fitted yet. Please call the fit function before using the Anomaly_Score function"
 
-        if self.num_processes_anomaly > 1:
-            # divide the self.forest list into segments
-            segment_size = len(self.forest) // self.num_processes_anomaly
-            segment_size = max(segment_size, 1)
+        c_X = X.astype(np.float64).flatten()
 
-            segments = [
-                self.forest[i : i + segment_size]
-                for i in range(0, len(self.forest), segment_size)
-            ]
-
-            partial_sum = partial(self.segment_sum, X=X)
-
-            with Pool(self.num_processes_anomaly) as pool:
-                mean_path = pool.map(partial_sum, segments)
-                mean_path = sum(mean_path)
-        else:
-            for i in self.forest:
-                mean_path += i.compute_paths(X)
+        for i in self.forest:
+            mean_path += i.compute_paths(c_X, X.shape)
 
         mean_path = mean_path / len(self.forest)
         c = c_factor(len(X))
