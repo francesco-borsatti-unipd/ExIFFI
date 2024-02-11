@@ -15,11 +15,12 @@ from functools import partial
 from multiprocessing import Pool
 import numpy.typing as npt
 
-from utils.utils import make_rand_vector, c_factor
+from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
 
+from utils.utils import make_rand_vector, c_factor
 from models.c_functions import Node, c_compute_paths, c_anomaly_score
 
 
@@ -221,6 +222,7 @@ class ExtendedIF:
         subsample_size=None,
         plus=1,
         num_processes_anomaly=1,
+        disable_fit_tqdm=True,
     ):
         self.n_trees = n_trees
         self.max_depth = max_depth
@@ -230,6 +232,7 @@ class ExtendedIF:
         self.forest = None
         self.plus = plus
         self.num_processes_anomaly = num_processes_anomaly
+        self.disable_fit_tqdm = disable_fit_tqdm
 
     def fit(self, X):
         """
@@ -262,7 +265,7 @@ class ExtendedIF:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in enumerate(self.forest):
+        for i, x in tqdm(enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
@@ -599,6 +602,7 @@ class ExtendedIF_c:
         subsample_size=None,
         plus=1,
         num_processes_anomaly=1,
+        disable_fit_tqdm=True,
     ):
         self.n_trees = n_trees
         self.max_depth = max_depth
@@ -608,6 +612,7 @@ class ExtendedIF_c:
         self.forest = None
         self.plus = plus
         self.num_processes_anomaly = num_processes_anomaly
+        self.disable_fit_tqdm = disable_fit_tqdm
 
     def fit(self, X):
         """
@@ -631,7 +636,7 @@ class ExtendedIF_c:
 
         self.forest = [
             ExtendedTree_c(self.dims, self.min_sample, self.max_depth, self.plus)
-            for i in range(self.n_trees)
+            for _ in range(self.n_trees)
         ]
 
         if self.subsample_size:
@@ -640,7 +645,7 @@ class ExtendedIF_c:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in enumerate(self.forest):
+        for i, x in tqdm(enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
