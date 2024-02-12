@@ -125,10 +125,10 @@ def c_anomaly_score(
 lib_path = glob(os.path.join(p, "c_make_importance.so"))
 assert lib_path, f"c_make_importance.so not found in path {p}"
 lib = ctypes.CDLL(lib_path[0])
-c_importance = lib.importance_worker
+c_make_importance_raw = lib.make_importance
 
 # define the C function signature
-c_importance.argtypes = (
+c_make_importance_raw.argtypes = (
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),  # dataset
     ctypes.POINTER(Node),  # nodes array
     ctypes.c_bool,  # depth_based
@@ -143,3 +143,39 @@ c_importance.argtypes = (
         dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"
     ),  # normal vectors DESTINATION ARRAY
 )
+
+
+def c_make_importance(
+    X: npt.NDArray[np.float64],
+    nodes,
+    depth_based: ctypes.c_bool,
+    left_son: npt.NDArray[np.int32],
+    right_son: npt.NDArray[np.int32],
+    X_rows: ctypes.c_int,
+    X_cols: ctypes.c_int,
+    importances: npt.NDArray[np.float64],
+    normal_vectors: npt.NDArray[np.float64],
+):
+    """
+    Compute the Importance Scores for each node along the Isolation Tree.
+
+    Parameters
+        X (np.array):  Input dataset
+        depth_based (bool): decide weather to used the Depth Based or the Not Depth Based Importance computation function.
+
+    Returns
+        Importances_arr: np.array of the Importances values for all the nodes in the Isolation Tree.
+        Normal_vectors_list: np.array of the normal vectors for all the nodes in the Isolation Tree.
+    """
+
+    c_make_importance_raw(
+        X,
+        nodes,
+        depth_based,
+        left_son,
+        right_son,
+        X_rows,
+        X_cols,
+        importances,
+        normal_vectors,
+    )

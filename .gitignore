@@ -4,3 +4,5 @@ results
 *.pkl
 Test_new_data.ipynb
 creditcard.csv
+*.so
+*.o

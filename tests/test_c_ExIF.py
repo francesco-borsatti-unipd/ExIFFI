@@ -90,10 +90,10 @@ def pre_process(path):
     return X_train.astype(np.float64), X_test.astype(np.float64)
 
 
-from Extended_IF import ExtendedIF, ExtendedIF_c
+from models.Extended_IF import ExtendedIF, ExtendedIF_c
 
 dataset_paths = get_df_paths()
-name = "moodify"
+name = "wine"
 savedir = "/dev/null"
 n_trees = 100
 X_train, X_test = pre_process(dataset_paths[name])
@@ -126,21 +126,6 @@ np.random.seed(seed)
 exif_c.fit(X_train)
 
 
-# print("...Start timing tests...")
-# num_runs = 100
-# c_time = timeit.timeit(
-#     lambda: exif_c.Anomaly_Score(X_test),
-#     number=num_runs,
-# )
-# pure_c_time = timeit.timeit(
-#     lambda: exif_c.c_AnomalyScore(X_test),
-#     number=num_runs,
-# )
-# print("num runs", num_runs)
-# print(f"C time: {c_time/num_runs}")
-# print(f"Pure C time: {pure_c_time/num_runs}")
-# quit()
-
 print("... Equality check (CTRL+C to skip) ...")
 try:
     score_original = exif.Anomaly_Score(X_test)
@@ -158,7 +143,7 @@ except KeyboardInterrupt:
     pass
 
 print("\n... Timing tests ...")
-num_runs = 1
+num_runs = 2
 python_time = timeit.timeit(
     lambda: exif.Anomaly_Score(X_test),
     number=num_runs,

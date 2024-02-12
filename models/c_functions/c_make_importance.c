@@ -46,9 +46,9 @@ inline void single_imp_and_abs_vec(
  * @param X_rows: number of rows of X, which is the number of SAMPLES in the dataset
  * @param X_cols: number of columns of X, which is the number of FEATURES in the dataset
  *
- * @return Void. The importance scores are stored in the Importances_list and Normal_vectors_list arrays
+ * @return Void. The importance scores are stored in the Importances and Normal_vectors arrays
  */
-void importance_worker(
+void make_importance(
     double *X,
     struct Node *nodes,
     bool depth_based,
@@ -56,14 +56,14 @@ void importance_worker(
     int *right_son,
     int X_rows,
     int X_cols, // number of features
-    double *Importances_list,
-    double *Normal_vectors_list)
+    double *Importances,
+    double *Normal_vectors)
 {
 #pragma omp parallel for shared(X, nodes, left_son, right_son) schedule(dynamic)
     for (int i = 0; i < X_rows; i++)
     {
-        double *curr_imp = Importances_list + i * X_cols,
-               *curr_norm = Normal_vectors_list + i * X_cols,
+        double *curr_imp = Importances + i * X_cols,
+               *curr_norm = Normal_vectors + i * X_cols,
                *curr_X = X + i * X_cols;
 
         int id = 0, father_id = 0, depth = 0;
