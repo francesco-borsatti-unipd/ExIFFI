@@ -2,12 +2,13 @@ import sys, ctypes
 from typing import List
 from functools import partial
 from multiprocessing import Pool
+import numpy as np
+import numpy.typing as npt
 
 
 sys.path.append("./models")
 from models.Extended_IF import ExtendedIF_c, ExtendedTree_c
 from models.c_functions import c_make_importance
-import numpy as np
 
 
 class Extended_DIFFI_tree_c(ExtendedTree_c):
@@ -65,24 +66,19 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
                 depth += 1
         return Importances_list, Normal_vectors_list
 
-    def make_importance(self, X, depth_based):
+    def make_importance(self, X: npt.NDArray[np.float64], depth_based, X_shape):
         """
         Compute the Importance Scores for each node along the Isolation Trees.
 
         Parameters
-            X (bool): np.array Input dataset
+            X (bool): flattened np.array Input dataset of type `float64`
             depth_based (bool): Boolean variable used to decide weather to used the Depth Based or the Not Depth Based Importance computation function.
 
         Returns
         Importances_list (np.array): Importances values for all the nodes in the Isolation Tree.
         Normal_vectors_list (np.array): all the normal vectors used in the splitting hyperplane creation.
         """
-
-        # convert input dataset to C compatible array
-        c_X = np.array(X, dtype=np.float64)
-        c_X = c_X.flatten()
-
-        X_rows, X_cols = int(X.shape[0]), int(X.shape[1])
+        X_rows, X_cols = int(X_shape[0]), int(X_shape[1])
 
         # output vectors
         l = int(X_rows * X_cols)
@@ -90,7 +86,7 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
         normal_vectors = np.zeros(l, dtype=np.float64)
 
         c_make_importance(
-            X=c_X,
+            X=X,
             nodes=self.c_node_arr,
             depth_based=ctypes.c_bool(depth_based),
             left_son=self.c_left_son,
@@ -204,23 +200,32 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_anomaly = num_processes_anomaly
 
     @staticmethod
-    def forest_worker(forest: List[Extended_DIFFI_tree_c], X, depth_based):
+    def forest_worker(forest: List[Extended_DIFFI_tree_c], X: np.ndarray, depth_based):
         """
         This takes a segment of the forest, which is a list of trees.
         Given a dataset X and the depth_based option, return a function that
         computes the sum of the importance scores and the sum of the normal vectors.
         """
-        partial_sum_importances_matrix = np.zeros_like(X, dtype="float64")
-        partial_sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
+
+        X_shape = X.shape
+        X = X.flatten()
+        X = X.astype(np.float64)
+
+        sum_importances = np.zeros_like(X, dtype=np.float64)
+        sum_normal_vectors = np.zeros_like(X, dtype=np.float64)
 
         for tree in forest:
             importances_matrix, normal_vectors_matrix = tree.make_importance(
-                X, depth_based
+                X, depth_based, X_shape
             )
-            partial_sum_importances_matrix += importances_matrix
-            partial_sum_normal_vectors_matrix += normal_vectors_matrix
+            sum_importances += importances_matrix
+            sum_normal_vectors += normal_vectors_matrix
 
-        return partial_sum_importances_matrix, partial_sum_normal_vectors_matrix
+        # reshape
+        sum_importances = sum_importances.reshape(X_shape)
+        sum_normal_vectors = sum_normal_vectors.reshape(X_shape)
+
+        return sum_importances, sum_normal_vectors
 
     def Importances(self, X, calculate, overwrite, depth_based):
         """
