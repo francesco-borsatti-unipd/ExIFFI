@@ -256,24 +256,32 @@ class Extended_DIFFI_c(ExtendedIF_c):
                 splitting hyperplances of the nodes in which it was included.
 
         """
-        if (self.sum_importances_matrix is None) or calculate:
-            sum_importances_matrix = np.zeros_like(X, dtype=np.float64)
-            sum_normal_vectors_matrix = np.zeros_like(X, dtype=np.float64)
-
-            print("Forest worker is serial")
-            sum_importances_matrix, sum_normal_vectors_matrix = self.forest_worker(
-                self.forest, X, depth_based
-            )
-
-            if overwrite:
-                self.sum_importances_matrix = sum_importances_matrix / self.n_trees
-                self.sum_normal_vectors_matrix = (
-                    sum_normal_vectors_matrix / self.n_trees
-                )
-
-            return sum_importances_matrix, sum_normal_vectors_matrix
-        else:
+        if not ((self.sum_importances_matrix is None) or calculate):
             return self.sum_importances_matrix, self.sum_normal_vectors_matrix
+
+        X_shape = X.shape
+        X = X.flatten()
+        X = X.astype(np.float64)
+
+        sum_importances = np.zeros_like(X, dtype=np.float64)
+        sum_normal_vectors = np.zeros_like(X, dtype=np.float64)
+
+        for tree in self.forest:
+            importances_matrix, normal_vectors_matrix = tree.make_importance(
+                X, depth_based, X_shape
+            )
+            sum_importances += importances_matrix
+            sum_normal_vectors += normal_vectors_matrix
+
+        # reshape
+        sum_importances = sum_importances.reshape(X_shape)
+        sum_normal_vectors = sum_normal_vectors.reshape(X_shape)
+
+        if overwrite:
+            self.sum_importances = sum_importances / self.n_trees
+            self.sum_normal_vectors = sum_normal_vectors / self.n_trees
+
+        return sum_importances, sum_normal_vectors
 
     def Global_importance(self, X, calculate, overwrite, depth_based=False):
         """
@@ -301,6 +309,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
         """
         print("Start computing Anomaly Score")
         anomaly_scores = self.Anomaly_Score(X)
+        # anomaly_scores = self.c_AnomalyScore(X)
         print("End computing Anomaly Score")
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 

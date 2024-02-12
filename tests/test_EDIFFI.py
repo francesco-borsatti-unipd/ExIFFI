@@ -198,7 +198,7 @@ if __name__ == "__main__":
         n_cores_fit = None
         n_cores_importance = None
         n_cores_anomaly = None
-        dataset_names = ["moodify"]
+        dataset_names = ["wine"]
         use_c = False
         parallel = True
 
