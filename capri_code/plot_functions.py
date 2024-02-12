@@ -189,7 +189,7 @@ def time_eff_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=1
 Plot dataset names versus cpu efficiency for different number of cores 
 """
 
-def cpu_eff_plot(data,n_cores,n_trees):
+def df_cpu_eff_plot(data,n_cores,n_trees):
     # Group by n_cores and n_trees and sort values by cpu_efficiency
     df=data.groupby(['n_cores_anomaly','n_trees']).get_group((n_cores,n_trees))
     df.sort_values(by='cpu_efficiency',ascending=True,inplace=True)
@@ -204,7 +204,34 @@ def cpu_eff_plot(data,n_cores,n_trees):
     df.sort_values('name',inplace=True)
 
     # Obtain the barplot using barplot_subplots function
-    fig,ax=plt.subplots(1,1,figsize=(10,8))
-    ax=barplot_subplots(ax,f'CPU Efficiency {n_trees} trees {n_cores} cores',df,'name','cpu_efficiency',rotate_xticks=True)
+    # fig,ax=plt.subplots(1,1,figsize=(10,8))
+    # ax=barplot_subplots(ax,f'CPU Efficiency {n_trees} trees {n_cores} cores',df,'name','cpu_efficiency',rotate_xticks=True)
 
-    return ax
+    return df
+
+def cpu_eff_subplots(data,num_trees,num_cores=[1,4,8,12,16]):
+    dfs_plots=[]
+    # for num_tree in num_trees:
+    #     df_1=df_cpu_eff_plot(data,1,n_trees=num_tree)
+    #     df_4=df_cpu_eff_plot(data,4,n_trees=num_tree)
+    #     df_8=df_cpu_eff_plot(data,8,n_trees=num_tree)
+    #     df_12=df_cpu_eff_plot(data,12,n_trees=num_tree)
+    #     df_16=df_cpu_eff_plot(data,16,n_trees=num_tree)
+    #     dfs_plots.append(pd.DataFrame({
+    #         'name': df_1['name'],
+    #         'cpu_efficiency':[df_1['cpu_efficiency'].max(),df_4['cpu_efficiency'].max(),df_8['cpu_efficiency'].max(),df_12['cpu_efficiency'].max(),df_16['cpu_efficiency'].max()]
+    #     }))
+
+    for num_core in num_cores:
+        df=df_cpu_eff_plot(data,num_core,num_trees)
+        dfs_plots.append(df[['name','n_cores_anomaly','cpu_efficiency']])
+
+    fig, axes = plt.subplots(3, 2, figsize=(15, 10))
+    names = ['1 core','4 cores','8 cores','12 cores','16 cores',]
+
+    for i, (ax, name, df) in enumerate(zip(axes.flatten(), names, dfs_plots)):
+        barplot_subplots(ax, name, df,'name','cpu_efficiency',ylim_off=10,rotate_xticks=True)
+
+    plt.tight_layout()
+    plt.show()
+    
