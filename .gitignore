@@ -2,6 +2,5 @@ __pycache__/
 results
 *.npz
 *.pkl
-models/test_c_ExIF.py
 Test_new_data.ipynb
 creditcard.csv
