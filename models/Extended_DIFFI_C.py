@@ -1,13 +1,12 @@
-import sys
-import pickle
+import sys, ctypes
 from typing import List
-import logging
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 
 
 sys.path.append("./models")
 from models.Extended_IF import ExtendedIF_c, ExtendedTree_c
+from models.c_functions import c_make_importance
 import numpy as np
 
 
@@ -69,55 +68,40 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
     def make_importance(self, X, depth_based):
         """
         Compute the Importance Scores for each node along the Isolation Trees.
-        --------------------------------------------------------------------------------
 
         Parameters
-        ----------
-        X: pd.DataFrame
-                Input dataset
-        depth_based: bool
-                Boolean variable used to decide weather to used the Depth Based or the Not Depth Based Importance
-                computation function.
+            X (bool): np.array Input dataset
+            depth_based (bool): Boolean variable used to decide weather to used the Depth Based or the Not Depth Based Importance computation function.
 
         Returns
-        ----------
-        Importances_list: np.array
-                List with the Importances values for all the nodes in the Isolation Tree.
-        Normal_vectors_list: np.array
-                List of all the normal vectors used in the splitting hyperplane creation.
+        Importances_list (np.array): Importances values for all the nodes in the Isolation Tree.
+        Normal_vectors_list (np.array): all the normal vectors used in the splitting hyperplane creation.
         """
 
-        # multicore processing
-        num_processes = 1  ####################################################
+        # convert input dataset to C compatible array
+        c_X = np.array(X, dtype=np.float64)
+        c_X = c_X.flatten()
 
-        if num_processes > 1:
-            partial_importance_worker = partial(
-                self.importance_worker,
-                nodes=self.nodes,
-                depth_based=depth_based,
-                left_son=self.left_son,
-                right_son=self.right_son,
-            )
+        X_rows, X_cols = int(X.shape[0]), int(X.shape[1])
 
-            # split the input vector num_processes
-            segment_size = len(X) // num_processes
-            segments = [X[i : i + segment_size] for i in range(0, len(X), segment_size)]
+        # output vectors
+        l = int(X_rows * X_cols)
+        importances = np.zeros(l, dtype=np.float64)
+        normal_vectors = np.zeros(l, dtype=np.float64)
 
-            with Pool(processes=num_processes) as pool:
-                results = pool.map(partial_importance_worker, segments)
+        c_make_importance(
+            X=c_X,
+            nodes=self.c_node_arr,
+            depth_based=ctypes.c_bool(depth_based),
+            left_son=self.c_left_son,
+            right_son=self.c_right_son,
+            X_rows=ctypes.c_int(X_rows),
+            X_cols=ctypes.c_int(X_cols),
+            importances=importances,
+            normal_vectors=normal_vectors,
+        )
 
-                Importances_list = []
-                Normal_vectors_list = []
-
-                for result in results:
-                    Importances_list.extend(result[0])
-                    Normal_vectors_list.extend(result[1])
-        else:
-            Importances_list, Normal_vectors_list = self.importance_worker(
-                X, self.nodes, depth_based, self.left_son, self.right_son
-            )
-
-        return np.array(Importances_list), np.array(Normal_vectors_list)
+        return importances, normal_vectors
 
 
 class Extended_DIFFI_c(ExtendedIF_c):
@@ -131,7 +115,9 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_anomaly = 1
 
     @staticmethod
-    def make_tree_worker(forest_segment: List[Extended_DIFFI_tree_c], X, subsample_size):
+    def make_tree_worker(
+        forest_segment: List[Extended_DIFFI_tree_c], X, subsample_size
+    ):
         # subsets = []
         for x in forest_segment:
             if not subsample_size or subsample_size > X.shape[0]:
@@ -141,6 +127,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
                 X_sub = X[indx, :]
                 x.make_tree(X_sub, 0, 0)
                 # subsets.append(indx)
+            x.convert_to_c_data()
         return forest_segment
 
     def fit(self, X):
@@ -162,7 +149,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
             self.max_depth = np.inf
 
         self.forest = [
-            Extended_DIFFI_tree(
+            Extended_DIFFI_tree_c(
                 dims=self.dims,
                 min_sample=self.min_sample,
                 max_depth=self.max_depth,
@@ -203,6 +190,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
                     X_sub = X[indx, :]
                     x.make_tree(X_sub, 0, 0)
                     self.subsets.append(indx)
+                x.convert_to_c_data()
 
     def set_num_processes(
         self, num_processes_fit, num_processes_importances, num_processes_anomaly
@@ -222,8 +210,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         Given a dataset X and the depth_based option, return a function that
         computes the sum of the importance scores and the sum of the normal vectors.
         """
-        # forest, X, depth_based = args
-
         partial_sum_importances_matrix = np.zeros_like(X, dtype="float64")
         partial_sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
 
@@ -266,52 +252,13 @@ class Extended_DIFFI_c(ExtendedIF_c):
 
         """
         if (self.sum_importances_matrix is None) or calculate:
-            sum_importances_matrix = np.zeros_like(X, dtype="float64")
-            sum_normal_vectors_matrix = np.zeros_like(X, dtype="float64")
+            sum_importances_matrix = np.zeros_like(X, dtype=np.float64)
+            sum_normal_vectors_matrix = np.zeros_like(X, dtype=np.float64)
 
-            # multicore processing
-            # split the input vector into segments
-            # from this: [tree0, tree1, tree2, tree3, tree4]
-            # to this: [  [tree0, tree1],   [tree2, tree3], [tree4]]]
-
-            segment_size = max(1, len(self.forest) // self.num_processes_importances)
-
-            print("self.num_processes_importances:", self.num_processes_importances)
-            print("segment_size:", segment_size)
-
-            segments = [
-                self.forest[i : i + segment_size]
-                for i in range(0, len(self.forest), segment_size)
-            ]
-
-            print(f"Segments shapes: {[np.array(s).shape for s in segments]}")
-
-            if self.num_processes_importances > 1:
-                with Pool(processes=self.num_processes_importances) as pool:
-                    forest_worker_partial = partial(
-                        self.forest_worker, X=X, depth_based=depth_based
-                    )
-
-                    # the result list of tuples which are the outputs of the make_importance function
-                    results = pool.map(forest_worker_partial, segments)
-
-                    # results = [ (part_sum_mat0, part_sum_norm0), # worker 0
-                    #             (part_sum_mat1, part_sum_norm1), # worker 1
-                    #             ...
-                    #           ]
-
-                    for result in results:
-                        sum_importances_matrix += result[0]
-                        sum_normal_vectors_matrix += result[1]
-
-                    # the division can be done at the end
-                    sum_importances_matrix /= self.n_trees
-                    sum_normal_vectors_matrix /= self.n_trees
-            else:
-                print("Forest worker is serial")
-                sum_importances_matrix, sum_normal_vectors_matrix = self.forest_worker(
-                    self.forest, X, depth_based
-                )
+            print("Forest worker is serial")
+            sum_importances_matrix, sum_normal_vectors_matrix = self.forest_worker(
+                self.forest, X, depth_based
+            )
 
             if overwrite:
                 self.sum_importances_matrix = sum_importances_matrix / self.n_trees
@@ -401,4 +348,3 @@ class Extended_DIFFI_c(ExtendedIF_c):
             X, calculate, overwrite, depth_based
         )
         return importances_matrix / normal_vectors_matrix
-
