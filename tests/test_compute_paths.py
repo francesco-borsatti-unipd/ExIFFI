@@ -1,8 +1,25 @@
+import os, sys, logging
 import ctypes
 import timeit
 import pickle as pkl
 import numpy as np
-from c_signatures import c_compute_paths, Node
+
+def append_dirname(dirname: str, max_levels: int = 10):
+    """Append a directory to the system path."""
+    # from the current path, go up to max_levels directories to find the directory to append
+    path = os.getcwd()
+    for _ in range(max_levels):
+        path = os.path.dirname(path)
+        logging.debug(os.path.basename(path))
+        if os.path.basename(path) == dirname and os.path.isdir(path):
+            sys.path.append(str(path))
+            return
+    raise RuntimeError(f"Could not find directory {dirname} in {max_levels} levels")
+
+
+append_dirname("ExIFFI")
+
+from models.c_functions import c_compute_paths, Node
 
 
 def nodes_to_c_array(nodes, dest_arr, num_features: int):

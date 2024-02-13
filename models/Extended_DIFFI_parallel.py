@@ -210,6 +210,9 @@ class Extended_DIFFI_parallel(ExtendedIF):
                     x.make_tree(X_sub, 0, 0)
                     self.subsets.append(indx)
 
+        # print("average number of nodes:", np.mean([len(x.nodes) for x in self.forest]))
+        # print("std number of nodes:", np.std([len(x.nodes) for x in self.forest]))
+
     def set_num_processes(
         self, num_processes_fit, num_processes_importances, num_processes_anomaly
     ):

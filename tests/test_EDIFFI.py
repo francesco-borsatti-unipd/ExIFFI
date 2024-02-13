@@ -84,7 +84,10 @@ def compute_imps(model, X_train, X_test, n_runs):
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances", disable=True):
+        start = time.time()
         model.fit(X_train)
+
+        print(f"Fit time: {time.time() - start:.2f} s")
         print("Start Global Importance")
         imps[i, :] = model.Global_importance(
             X_test, calculate=True, overwrite=False, depth_based=False
@@ -117,6 +120,7 @@ def test_exiffi(
         EDIFFI = Extended_DIFFI_c(
             n_trees=n_trees, max_depth=max_depth, subsample_size=subsample_size, plus=1
         )
+        # EDIFFI.set_num_processes(n_cores_fit, n_cores_importance, n_cores_anomaly)
     elif parallel:
         print("... Initialize Extended_DIFFI_parallel ...")
         EDIFFI = Extended_DIFFI_parallel(
@@ -198,7 +202,7 @@ if __name__ == "__main__":
         n_cores_fit = None
         n_cores_importance = None
         n_cores_anomaly = None
-        dataset_names = ["wine"]
+        dataset_names = ["moodify"]
         use_c = False
         parallel = True
 

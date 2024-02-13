@@ -1,3 +1,6 @@
+// NOT USED: since the compute_paths is parallel, it does not gain any performance 
+//      from being called from a parallel function. 
+
 // To compile:
 // $ gcc -fopenmp -O2 -fPIC -shared -o c_anomaly_score.so c_anomaly_score.c
 
@@ -52,7 +55,7 @@ void anomaly_score(
     for (int i = 0; i < X_rows; i++)
         computed_paths[i] = 0;
 
-// #pragma omp parallel for reduction(+ : computed_paths[ : X_rows])
+#pragma omp parallel for reduction(+ : computed_paths[ : X_rows])
     for (int tree_idx = 0; tree_idx < num_trees; tree_idx++)
     {
         int *this_computed_paths = (int *)malloc(X_rows * sizeof(int));

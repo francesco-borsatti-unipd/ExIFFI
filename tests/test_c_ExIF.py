@@ -108,7 +108,7 @@ exif_c = ExtendedIF_c(
     max_depth=100,
     subsample_size=256,
     plus=1,
-    num_processes_anomaly=2,
+    num_processes_anomaly=1,
     disable_fit_tqdm=False,
 )
 
@@ -154,18 +154,18 @@ c_time = timeit.timeit(
     number=num_runs,
 )
 
-pure_c_time = timeit.timeit(
-    lambda: exif_c.c_AnomalyScore(X_test),
-    number=num_runs,
-)
+# pure_c_time = timeit.timeit(
+#     lambda: exif_c.c_AnomalyScore(X_test),
+#     number=num_runs,
+# )
 
 print("num runs", num_runs)
 print(f"Python time: {python_time/num_runs}")
 print(f"C time: {c_time/num_runs}")
-print(f"Pure C time: {pure_c_time/num_runs}")
+# print(f"Pure C time: {pure_c_time/num_runs}")
 
 print("C speedup:", 100 * python_time / c_time, r"%")
-print("Pure C speedup:", 100 * python_time / pure_c_time, r"%")
+# print("Pure C speedup:", 100 * python_time / pure_c_time, r"%")
 
 
 quit()

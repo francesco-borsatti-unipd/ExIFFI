@@ -175,6 +175,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
 
         else:
             # --- Serial execution ---
+            print("Fitting is serial")
             self.subsets = []
             for x in self.forest:
                 if not self.subsample_size or self.subsample_size > X.shape[0]:
@@ -198,34 +199,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_fit = num_processes_fit
         self.num_processes_importances = num_processes_importances
         self.num_processes_anomaly = num_processes_anomaly
-
-    @staticmethod
-    def forest_worker(forest: List[Extended_DIFFI_tree_c], X: np.ndarray, depth_based):
-        """
-        This takes a segment of the forest, which is a list of trees.
-        Given a dataset X and the depth_based option, return a function that
-        computes the sum of the importance scores and the sum of the normal vectors.
-        """
-
-        X_shape = X.shape
-        X = X.flatten()
-        X = X.astype(np.float64)
-
-        sum_importances = np.zeros_like(X, dtype=np.float64)
-        sum_normal_vectors = np.zeros_like(X, dtype=np.float64)
-
-        for tree in forest:
-            importances_matrix, normal_vectors_matrix = tree.make_importance(
-                X, depth_based, X_shape
-            )
-            sum_importances += importances_matrix
-            sum_normal_vectors += normal_vectors_matrix
-
-        # reshape
-        sum_importances = sum_importances.reshape(X_shape)
-        sum_normal_vectors = sum_normal_vectors.reshape(X_shape)
-
-        return sum_importances, sum_normal_vectors
 
     def Importances(self, X, calculate, overwrite, depth_based):
         """
@@ -309,7 +282,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         """
         print("Start computing Anomaly Score")
         anomaly_scores = self.Anomaly_Score(X)
-        # anomaly_scores = self.c_AnomalyScore(X)
         print("End computing Anomaly Score")
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 

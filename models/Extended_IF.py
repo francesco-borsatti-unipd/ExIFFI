@@ -272,6 +272,10 @@ class ExtendedIF:
                 X_sub = X.view()[subsets_idxs[i], :]
                 x.make_tree(X_sub, 0, 0)
 
+        # print("average number of nodes:", np.mean([len(tree.nodes) for tree in self.forest]))
+        # print("std number of nodes:", np.std([len(tree.nodes) for tree in self.forest]))
+
+
     @staticmethod
     def segment_sum(segment: list[ExtendedTree], X):
         part_sum = np.sum([tree.compute_paths(X) for tree in segment], axis=0)
