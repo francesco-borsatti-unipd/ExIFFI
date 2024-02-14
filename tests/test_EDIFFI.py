@@ -196,27 +196,27 @@ if __name__ == "__main__":
     class Args:
         seed = 42
         parallel = True
-        n_trees = 100
+        n_trees = 400
         n_runs_imps = 1
-        n_cores = [8]  # fit, importance, anomaly
+        n_cores = [12]  # fit, importance, anomaly
         n_cores_fit = None
         n_cores_importance = None
         n_cores_anomaly = None
         dataset_names = ["moodify"]
-        use_c = False
+        use_c = True
         parallel = True
 
     print("... Start timing tests ...")
     num_runs = 1
     args = Args()
 
-    python_time = timeit.timeit(lambda: main(args), number=num_runs)
+    #python_time = timeit.timeit(lambda: main(args), number=num_runs)
 
-    print("-"*100)
-    args.use_c = True
+    #print("-"*100)
+    #args.use_c = True
     c_time = timeit.timeit(lambda: main(args), number=num_runs)
 
-    print("-"*100)
-    print(f"Python time: {python_time/num_runs}")
+    #print("-"*100)
+    #print(f"Python time: {python_time/num_runs}")
     print(f"C time: {c_time/num_runs}")
-    print(f"C speedup: {100*python_time/c_time:.2f}", r"%")
+    #print(f"C speedup: {100*python_time/c_time:.2f}", r"%")
