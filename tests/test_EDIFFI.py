@@ -198,7 +198,7 @@ if __name__ == "__main__":
         parallel = True
         n_trees = 400
         n_runs_imps = 1
-        n_cores = [12]  # fit, importance, anomaly
+        n_cores = [8]  # fit, importance, anomaly
         n_cores_fit = None
         n_cores_importance = None
         n_cores_anomaly = None
@@ -208,7 +208,10 @@ if __name__ == "__main__":
 
     print("... Start timing tests ...")
     num_runs = 1
+
+    # Set the OMP_NUM_THREADS environment variable to n_cores to manage the number of threads used by OpenMP
     args = Args()
+    os.environ["OMP_NUM_THREADS"] = str(args.n_cores[0])
 
     #python_time = timeit.timeit(lambda: main(args), number=num_runs)
 
