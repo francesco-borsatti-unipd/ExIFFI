@@ -21,12 +21,12 @@ from utils.utils import partition_data
 from utils.feature_selection import *
 from process_results import load_stats
 
-# from plot import *
-# from simulation_setup import *
-from models import *
-from models.Extended_IF import *
-from models.Extended_DIFFI_parallel import *
-from models.Extended_DIFFI_original import *
+# from models import *
+
+from models.Extended_DIFFI_parallel import Extended_DIFFI_parallel
+from models.Extended_DIFFI_original import Extended_DIFFI_original
+from models.Extended_DIFFI_C import Extended_DIFFI_c
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
@@ -177,6 +177,11 @@ def parse_arguments():
         help="If set, add bash -c to the command for timing the code",
     )
     parser.add_argument(
+        "--use_C",
+        action="store_true",
+        help="If set, use the C implementation of the Extended_DIFFI",
+    )
+    parser.add_argument(
         "--filename",
         type=str,
         default=None,
@@ -199,6 +204,7 @@ def test_exiffi(
     name="",
     n_runs_imps=10,
     filename=None,
+    use_C=False,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -219,7 +225,16 @@ def test_exiffi(
             seed += 1
             np.random.seed(seed)
 
-        if parallel:
+        if use_C:
+            print("Set up Extended_DIFFI_C")
+            EDIFFI = Extended_DIFFI_c(
+                n_trees=n_trees,
+                max_depth=8,
+                subsample_size=256,
+                plus=1,
+            )
+
+        elif parallel:
             print("Set up Extended_DIFFI_parallel")
             EDIFFI = Extended_DIFFI_parallel(
                 n_trees=n_trees, max_depth=8, subsample_size=256, plus=1
@@ -227,6 +242,7 @@ def test_exiffi(
             EDIFFI.set_num_processes(n_cores_fit, n_cores_importance, n_cores_anomaly)
             print("Finished setting up Extended_DIFFI_parallel")
         else:
+            print("Set up Extended_DIFFI_original")
             EDIFFI = Extended_DIFFI_original(
                 n_trees=n_trees, max_depth=8, subsample_size=256, plus=1
             )
@@ -257,11 +273,11 @@ def test_exiffi(
 
     np.savez(
         filepath,
-        execution_time_stat=time_stat,
+        execution_time_stat=time_stat,  # type: ignore
         importances_matrix=ex_imps,
-        memory_MB_stats=mem_stat,
-        arguments=args,
-        time=pd.Timestamp.now(),
+        memory_MB_stats=mem_stat,  # type: ignore
+        arguments=args,  # type: ignore
+        time=pd.Timestamp.now(),  # type: ignore
     )
 
 
@@ -329,6 +345,7 @@ def main(args):
             n_cores_importance=n_cores_importance,
             n_cores_anomaly=n_cores_anomaly,
             filename=args.filename,
+            use_C=args.use_C,
         )
 
 
