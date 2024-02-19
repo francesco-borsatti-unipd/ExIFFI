@@ -118,18 +118,24 @@ def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16
 Plot n_cores vs real_time for different number of trees
 """
 
-def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False):
+def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False,no_16=False):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
         df_4=df.groupby(['n_cores','n_trees']).get_group((4,num_tree))
         df_8=df.groupby(['n_cores','n_trees']).get_group((8,num_tree))
         df_12=df.groupby(['n_cores','n_trees']).get_group((12,num_tree))
-        df_16=df.groupby(['n_cores','n_trees']).get_group((16,num_tree))
-        dfs_plot.append(pd.DataFrame({
-            'n_cores': n_cores,
-            'real_time_mean':[np.mean(df_1['real_time_single_run']),np.mean(df_4['real_time_single_run']),np.mean(df_8['real_time_single_run']),np.mean(df_12['real_time_single_run']),np.mean(df_16['real_time_single_run'])]
-        }))
+        if no_16:
+            dfs_plot.append(pd.DataFrame({
+                'n_cores': n_cores,
+                'real_time_mean':[np.mean(df_1['real_time_single_run']),np.mean(df_4['real_time_single_run']),np.mean(df_8['real_time_single_run']),np.mean(df_12['real_time_single_run'])]
+            }))
+        else: 
+            df_16=df.groupby(['n_cores','n_trees']).get_group((16,num_tree))
+            dfs_plot.append(pd.DataFrame({
+                'n_cores': n_cores,
+                'real_time_mean':[np.mean(df_1['real_time_single_run']),np.mean(df_4['real_time_single_run']),np.mean(df_8['real_time_single_run']),np.mean(df_12['real_time_single_run']),np.mean(df_16['real_time_single_run'])]
+            }))
 
     fig, axes = plt.subplots(grid[0],grid[1],figsize=plotsize)
     dfs = dfs_plot
@@ -174,18 +180,24 @@ def time_mem_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=1
 Plot n_cores vs cpu_efficiency for different number of trees
 """
 
-def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False):
+def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False,no_16=False):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
         df_4=df.groupby(['n_cores','n_trees']).get_group((4,num_tree))
         df_8=df.groupby(['n_cores','n_trees']).get_group((8,num_tree))
         df_12=df.groupby(['n_cores','n_trees']).get_group((12,num_tree))
-        df_16=df.groupby(['n_cores','n_trees']).get_group((16,num_tree))
-        dfs_plot.append(pd.DataFrame({
-            'n_cores': n_cores,
-            'cpu_efficiency':[df_1['cpu_efficiency'].max(),df_4['cpu_efficiency'].max(),df_8['cpu_efficiency'].max(),df_12['cpu_efficiency'].max(),df_16['cpu_efficiency'].max()]
-        }))
+        if no_16:
+            dfs_plot.append(pd.DataFrame({
+                'n_cores': n_cores,
+                'cpu_efficiency':[df_1['cpu_efficiency'].max(),df_4['cpu_efficiency'].max(),df_8['cpu_efficiency'].max(),df_12['cpu_efficiency'].max()]
+            }))
+        else:
+            df_16=df.groupby(['n_cores','n_trees']).get_group((16,num_tree))
+            dfs_plot.append(pd.DataFrame({
+                'n_cores': n_cores,
+                'cpu_efficiency':[df_1['cpu_efficiency'].max(),df_4['cpu_efficiency'].max(),df_8['cpu_efficiency'].max(),df_12['cpu_efficiency'].max(),df_16['cpu_efficiency'].max()]
+            }))
 
     fig, axes = plt.subplots(grid[0],grid[1],figsize=plotsize)
     dfs = dfs_plot
