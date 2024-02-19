@@ -1,6 +1,7 @@
 import os, psutil
 import time
 import warnings
+import subprocess
 
 import argparse
 import numpy as np
@@ -30,6 +31,27 @@ from models.Extended_DIFFI_C import Extended_DIFFI_c
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)
+
+
+def calculate_total_memory():
+    pid = os.getpid()
+    process = psutil.Process(pid)
+
+    # Calculate memory usage of the main process
+    main_process_memory = process.memory_info().rss
+
+    # Calculate memory usage of all child processes
+    children_memory = sum(
+        child.memory_info().rss for child in process.children(recursive=True)
+    )
+
+    # Calculate total memory used
+    total_memory = main_process_memory + children_memory
+
+    # Convert to MB
+    total_memory_mb = total_memory / (1024 * 1024)
+
+    return total_memory_mb
 
 
 def drop_duplicates(X, y):
@@ -380,8 +402,6 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     if args.wrapper:
-        import subprocess
-
         arg_str = sys.argv[1:]
 
         # remove "--wrapper" from the list of arguments
@@ -448,4 +468,9 @@ if __name__ == "__main__":
             os.remove(filepath)
 
     else:
+
         main(args)
+
+        total_memory_used = calculate_total_memory()
+
+        print(f"RAM measured by python (single process): {total_memory_used:.2f} MB")
