@@ -287,6 +287,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
         """
         print("Start computing Anomaly Score")
         anomaly_scores = self.Anomaly_Score(X)
+        # anomaly_scores = self.c_AnomalyScore(X)
         print("End computing Anomaly Score")
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
