@@ -203,6 +203,12 @@ def parse_arguments():
         action="store_true",
         help="If set, use the C implementation of the Extended_DIFFI",
     )
+    # parser.add_argument(
+    #     "--n_threads",
+    #     type=int,
+    #     default=12,
+    #     help="Number of threads to use in the C implementation"
+    # )
     parser.add_argument(
         "--filename",
         type=str,
@@ -255,7 +261,7 @@ def test_exiffi(
                 subsample_size=256,
                 plus=1,
             )
-
+            #EDIFFI.set_num_threads()
         elif parallel:
             print("Set up Extended_DIFFI_parallel")
             EDIFFI = Extended_DIFFI_parallel(

@@ -4,6 +4,7 @@ from functools import partial
 from multiprocessing import Pool
 import numpy as np
 import numpy.typing as npt
+import os 
 
 
 sys.path.append("./models")
@@ -12,7 +13,7 @@ from models.c_functions import c_make_importance
 
 
 class Extended_DIFFI_tree_c(ExtendedTree_c):
-    def __init__(self, *args, **kwarg):
+    def __init__(self,*args, **kwarg):
         super().__init__(*args, **kwarg)
         self.importances = []
         self.sum_normals = []
@@ -199,6 +200,10 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_fit = num_processes_fit
         self.num_processes_importances = num_processes_importances
         self.num_processes_anomaly = num_processes_anomaly
+
+    # def set_num_threads(self):
+
+    #     os.environ["OMP_NUM_THREADS"] = str(self.num_threads)
 
     def Importances(self, X, calculate, overwrite, depth_based):
         """
