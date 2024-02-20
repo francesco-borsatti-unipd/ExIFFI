@@ -132,11 +132,19 @@ def pre_process(path):
 
     return X_train.astype(np.float64), X_test.astype(np.float64)
 
+"""
+TO DO 
+
+Add parameter use_c (from command line) and if it is true we can call model.Global_Importances with the 
+ value of the parameter imps_and_anomaly_all_in_one (also this paramter is taken from the command line). In
+case use_c is false we will call model.Global_Importance as it is called right now. 
+
+"""
 
 def compute_imps(model, X_train, X_test, n_runs):
     print(f"shape of X_train: {X_train.shape}")
     print(f"shape of X_test: {X_test.shape}")
-    mem_MB_lst = []
+    mem_MB_lst = [] 
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances"):
