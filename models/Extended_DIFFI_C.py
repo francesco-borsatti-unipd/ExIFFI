@@ -253,7 +253,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
         calculate,
         overwrite,
         depth_based=False,
-        imps_and_anomaly_all_in_one=True,
+        imps_and_anomaly_all_in_one=False,
     ):
         """
         Compute the Global Feature Importance vector for a set of input samples
