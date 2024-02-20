@@ -265,7 +265,9 @@ class ExtendedIF:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in tqdm(enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"):
+        for i, x in tqdm(
+            enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"
+        ):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
@@ -274,7 +276,6 @@ class ExtendedIF:
 
         # print("average number of nodes:", np.mean([len(tree.nodes) for tree in self.forest]))
         # print("std number of nodes:", np.std([len(tree.nodes) for tree in self.forest]))
-
 
     @staticmethod
     def segment_sum(segment: list[ExtendedTree], X):
@@ -649,7 +650,9 @@ class ExtendedIF_c:
                 0, X.shape[0], size=(self.n_trees, self.subsample_size)
             )
 
-        for i, x in tqdm(enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"):
+        for i, x in tqdm(
+            enumerate(self.forest), disable=self.disable_fit_tqdm, desc="Fitting forest"
+        ):
             if not self.subsample_size:
                 x.make_tree(X.view(), 0, 0)
             else:
@@ -701,6 +704,15 @@ class ExtendedIF_c:
 
         return anomaly_scores
 
+    def paths2anomaly_score(self, sum_paths, num_samples):
+        """
+        Given the sum of all paths across the trees in the forest, compute the anomaly score.
+        """
+        assert self.forest is not None, "The model has not been fitted yet."
+        mean_paths = sum_paths / len(self.forest)
+        c = c_factor(num_samples)
+        return 2.0 ** (-mean_paths / c)
+
     def Anomaly_Score(self, X):
         """
         Compute the Anomaly Score for an input dataset
@@ -714,20 +726,17 @@ class ExtendedIF_c:
         ----------
         Returns the Anomaly Scores of all the samples contained in the input dataset X.
         """
-        mean_path = np.zeros(len(X))
+        sum_paths = np.zeros(len(X))
         assert (
             self.forest is not None
         ), "The model has not been fitted yet. Please call the fit function before using the Anomaly_Score function"
 
         c_X = X.astype(np.float64).flatten()
 
-        for i in self.forest:
-            mean_path += i.compute_paths(c_X, X.shape)
+        for tree in self.forest:
+            sum_paths += tree.compute_paths(c_X, X.shape)
 
-        mean_path = mean_path / len(self.forest)
-        c = c_factor(len(X))
-
-        return 2 ** (-mean_path / c)
+        return self.paths2anomaly_score(sum_paths, len(X))
 
     def _predict(self, X, p):
         """

@@ -4,16 +4,17 @@ from functools import partial
 from multiprocessing import Pool
 import numpy as np
 import numpy.typing as npt
-import os 
+import os
 
 
 sys.path.append("./models")
 from models.Extended_IF import ExtendedIF_c, ExtendedTree_c
 from models.c_functions import c_make_importance
+from utils.utils import c_factor
 
 
 class Extended_DIFFI_tree_c(ExtendedTree_c):
-    def __init__(self,*args, **kwarg):
+    def __init__(self, *args, **kwarg):
         super().__init__(*args, **kwarg)
         self.importances = []
         self.sum_normals = []
@@ -83,6 +84,7 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
 
         # output vectors
         l = int(X_rows * X_cols)
+        paths = np.zeros(X_rows, dtype=np.int32)
         importances = np.zeros(l, dtype=np.float64)
         normal_vectors = np.zeros(l, dtype=np.float64)
 
@@ -94,11 +96,11 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
             right_son=self.c_right_son,
             X_rows=ctypes.c_int(X_rows),
             X_cols=ctypes.c_int(X_cols),
+            paths=paths,
             importances=importances,
             normal_vectors=normal_vectors,
         )
-
-        return importances, normal_vectors
+        return paths, importances, normal_vectors
 
 
 class Extended_DIFFI_c(ExtendedIF_c):
@@ -155,40 +157,18 @@ class Extended_DIFFI_c(ExtendedIF_c):
             for i in range(self.n_trees)
         ]
 
-        if self.num_processes_fit > 1:
-            # --- Parallel execution ---
-            partial_make_tree_worker = partial(
-                self.make_tree_worker, X=X, subsample_size=self.subsample_size
-            )
-
-            segment_size = max(1, len(self.forest) // self.num_processes_fit)
-
-            segments = [
-                self.forest[i : i + segment_size]
-                for i in range(0, len(self.forest), segment_size)
-            ]
-            with Pool(processes=self.num_processes_fit) as pool:
-                results = pool.map(partial_make_tree_worker, segments)
-
-                self.forest = []
-                for result in results:
-                    self.forest.extend(result)
-
-        else:
-            # --- Serial execution ---
-            print("Fitting is serial")
-            self.subsets = []
-            for x in self.forest:
-                if not self.subsample_size or self.subsample_size > X.shape[0]:
-                    x.make_tree(X, 0, 0)
-                else:
-                    indx = np.random.choice(
-                        X.shape[0], self.subsample_size, replace=False
-                    )
-                    X_sub = X[indx, :]
-                    x.make_tree(X_sub, 0, 0)
-                    self.subsets.append(indx)
-                x.convert_to_c_data()
+        # --- Serial execution ---
+        print("Fitting is serial")
+        self.subsets = []
+        for x in self.forest:
+            if not self.subsample_size or self.subsample_size > X.shape[0]:
+                x.make_tree(X, 0, 0)
+            else:
+                indx = np.random.choice(X.shape[0], self.subsample_size, replace=False)
+                X_sub = X[indx, :]
+                x.make_tree(X_sub, 0, 0)
+                self.subsets.append(indx)
+            x.convert_to_c_data()
 
     def set_num_processes(
         self, num_processes_fit, num_processes_importances, num_processes_anomaly
@@ -200,10 +180,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_fit = num_processes_fit
         self.num_processes_importances = num_processes_importances
         self.num_processes_anomaly = num_processes_anomaly
-
-    # def set_num_threads(self):
-
-    #     os.environ["OMP_NUM_THREADS"] = str(self.num_threads)
 
     def Importances(self, X, calculate, overwrite, depth_based):
         """
@@ -235,19 +211,25 @@ class Extended_DIFFI_c(ExtendedIF_c):
 
         """
         if not ((self.sum_importances_matrix is None) or calculate):
-            return self.sum_importances_matrix, self.sum_normal_vectors_matrix
+            return (
+                self.anomaly_scores,
+                self.sum_importances_matrix,
+                self.sum_normal_vectors_matrix,
+            )
 
         X_shape = X.shape
         X = X.flatten()
         X = X.astype(np.float64)
 
+        sum_paths = np.zeros(X_shape[0], dtype=np.float64)
         sum_importances = np.zeros_like(X, dtype=np.float64)
         sum_normal_vectors = np.zeros_like(X, dtype=np.float64)
 
         for tree in self.forest:
-            importances_matrix, normal_vectors_matrix = tree.make_importance(
+            paths, importances_matrix, normal_vectors_matrix = tree.make_importance(
                 X, depth_based, X_shape
             )
+            sum_paths += paths + 1
             sum_importances += importances_matrix
             sum_normal_vectors += normal_vectors_matrix
 
@@ -255,13 +237,24 @@ class Extended_DIFFI_c(ExtendedIF_c):
         sum_importances = sum_importances.reshape(X_shape)
         sum_normal_vectors = sum_normal_vectors.reshape(X_shape)
 
+        # compute anomaly score
+        anomaly_scores = self.paths2anomaly_score(sum_paths, X_shape[0])
+
         if overwrite:
+            self.anomaly_scores = anomaly_scores
             self.sum_importances = sum_importances / self.n_trees
             self.sum_normal_vectors = sum_normal_vectors / self.n_trees
 
-        return sum_importances, sum_normal_vectors
+        return anomaly_scores, sum_importances, sum_normal_vectors
 
-    def Global_importance(self, X, calculate, overwrite, depth_based=False):
+    def Global_importance(
+        self,
+        X,
+        calculate,
+        overwrite,
+        depth_based=False,
+        imps_and_anomaly_all_in_one=True,
+    ):
         """
         Compute the Global Feature Importance vector for a set of input samples
         --------------------------------------------------------------------------------
@@ -285,22 +278,29 @@ class Extended_DIFFI_c(ExtendedIF_c):
         Array containig a Global Feature Importance Score for each feature in the dataset.
 
         """
-        print("Start computing Anomaly Score")
-        anomaly_scores = self.Anomaly_Score(X)
-        # anomaly_scores = self.c_AnomalyScore(X)
-        print("End computing Anomaly Score")
-        ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
         print("Start computing Importances Score")
-        importances_matrix, normal_vectors_matrix = self.Importances(
+        anomaly_scores, importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
         print("Stop computing Importances Score")
+
+        if imps_and_anomaly_all_in_one:
+            print("Anomaly score already computed during importances computation")
+        else:
+            print("Start computing Anomaly Score")
+            anomaly_scores = self.Anomaly_Score(X)
+            # anomaly_scores = self.c_AnomalyScore(X)
+            print("End computing Anomaly Score")
+
+        ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
         Outliers_mean_importance_vector = np.mean(importances_matrix[ind], axis=0)
         Inliers_mean_Importance_vector = np.mean(
             importances_matrix[np.delete(range(len(importances_matrix)), ind)], axis=0
         )
+
+        assert normal_vectors_matrix is not None
 
         Outliers_mean_normal_vector = np.mean(normal_vectors_matrix[ind], axis=0)
         Inliers_mean_normal_vector = np.mean(
@@ -336,7 +336,8 @@ class Extended_DIFFI_c(ExtendedIF_c):
         Array containig a Local Feature Importance Score for each feature in the dataset.
 
         """
-        importances_matrix, normal_vectors_matrix = self.Importances(
+        _, importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
+        assert normal_vectors_matrix is not None
         return importances_matrix / normal_vectors_matrix
