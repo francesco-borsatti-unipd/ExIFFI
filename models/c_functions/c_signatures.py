@@ -137,6 +137,9 @@ c_make_importance_raw.argtypes = (
     ctypes.c_int,  # number of rows
     ctypes.c_int,  # number of columns
     np.ctypeslib.ndpointer(
+        dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"
+    ),  # paths DESTINATION ARRAY
+    np.ctypeslib.ndpointer(
         dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"
     ),  # importances DESTINATION ARRAY
     np.ctypeslib.ndpointer(
@@ -153,6 +156,7 @@ def c_make_importance(
     right_son: npt.NDArray[np.int32],
     X_rows: ctypes.c_int,
     X_cols: ctypes.c_int,
+    paths: npt.NDArray[np.int32],
     importances: npt.NDArray[np.float64],
     normal_vectors: npt.NDArray[np.float64],
 ):
@@ -176,6 +180,7 @@ def c_make_importance(
         right_son,
         X_rows,
         X_cols,
+        paths,
         importances,
         normal_vectors,
     )
