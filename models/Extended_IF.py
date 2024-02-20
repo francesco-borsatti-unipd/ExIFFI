@@ -721,8 +721,8 @@ class ExtendedIF_c:
 
         c_X = X.astype(np.float64).flatten()
 
-        for i in self.forest:
-            mean_path += i.compute_paths(c_X, X.shape)
+        for tree in self.forest:
+            mean_path += tree.compute_paths(c_X, X.shape)
 
         mean_path = mean_path / len(self.forest)
         c = c_factor(len(X))

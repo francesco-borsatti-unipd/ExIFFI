@@ -2,8 +2,8 @@
 
 # Compiler and flags
 CC := gcc
-CFLAGS := -Wall -Wextra -fPIC -O2 -fopenmp
-LDFLAGS := -shared -lgomp -lm -O2 -fopenmp
+CFLAGS := -Wall -Wextra -fPIC -O2 # -fopenmp
+LDFLAGS := -shared -lgomp -lm -O2 # -fopenmp
 
 # Source files
 SRC := c_anomaly_score.c c_compute_paths.c c_make_importance.c

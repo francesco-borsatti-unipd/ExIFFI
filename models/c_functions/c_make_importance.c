@@ -56,6 +56,7 @@ void make_importance(
     int *right_son,
     int X_rows,
     int X_cols, // number of features
+    int *paths,
     double *Importances,
     double *Normal_vectors)
 {
@@ -92,5 +93,6 @@ void make_importance(
 
             depth++;
         }
+        paths[i] = depth;
     }
 }
