@@ -181,10 +181,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_importances = num_processes_importances
         self.num_processes_anomaly = num_processes_anomaly
 
-    # def set_num_threads(self):
-
-    #     os.environ["OMP_NUM_THREADS"] = str(self.num_threads)
-
     def Importances(self, X, calculate, overwrite, depth_based):
         """
         Obtain the sum of the Importance scores computed along all the Isolation Trees, with the make_importance
@@ -233,7 +229,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
             paths, importances_matrix, normal_vectors_matrix = tree.make_importance(
                 X, depth_based, X_shape
             )
-            sum_paths += paths
+            sum_paths += paths + 1
             sum_importances += importances_matrix
             sum_normal_vectors += normal_vectors_matrix
 
@@ -242,9 +238,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
         sum_normal_vectors = sum_normal_vectors.reshape(X_shape)
 
         # compute anomaly score
-        mean_paths = sum_paths / len(self.forest)
-        c = c_factor(len(X))
-        anomaly_scores = 2.0 ** (-mean_paths / c)
+        anomaly_scores = self.paths2anomaly_score(sum_paths, X_shape[0])
 
         if overwrite:
             self.anomaly_scores = anomaly_scores
@@ -253,7 +247,14 @@ class Extended_DIFFI_c(ExtendedIF_c):
 
         return anomaly_scores, sum_importances, sum_normal_vectors
 
-    def Global_importance(self, X, calculate, overwrite, depth_based=False):
+    def Global_importance(
+        self,
+        X,
+        calculate,
+        overwrite,
+        depth_based=False,
+        imps_and_anomaly_all_in_one=True,
+    ):
         """
         Compute the Global Feature Importance vector for a set of input samples
         --------------------------------------------------------------------------------
@@ -277,17 +278,21 @@ class Extended_DIFFI_c(ExtendedIF_c):
         Array containig a Global Feature Importance Score for each feature in the dataset.
 
         """
-        # print("Start computing Anomaly Score")
-        # anomaly_scores = self.Anomaly_Score(X)
-        # print("End computing Anomaly Score")
-        # ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
 
-        print("Start computing Importances Score and anomaly scores")
+        print("Start computing Importances Score")
         anomaly_scores, importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
+        print("Stop computing Importances Score")
+
+        if imps_and_anomaly_all_in_one:
+            print("Anomaly score already computed during importances computation")
+        else:
+            print("Start computing Anomaly Score")
+            anomaly_scores = self.Anomaly_Score(X)
+            print("End computing Anomaly Score")
+
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
-        print("Stop computing Importances Score and anomaly scores")
 
         Outliers_mean_importance_vector = np.mean(importances_matrix[ind], axis=0)
         Inliers_mean_Importance_vector = np.mean(
@@ -330,7 +335,8 @@ class Extended_DIFFI_c(ExtendedIF_c):
         Array containig a Local Feature Importance Score for each feature in the dataset.
 
         """
-        importances_matrix, normal_vectors_matrix = self.Importances(
+        _, importances_matrix, normal_vectors_matrix = self.Importances(
             X, calculate, overwrite, depth_based
         )
+        assert normal_vectors_matrix is not None
         return importances_matrix / normal_vectors_matrix
