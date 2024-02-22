@@ -19,55 +19,6 @@ class Extended_DIFFI_tree_c(ExtendedTree_c):
         self.importances = []
         self.sum_normals = []
 
-    @staticmethod
-    def importance_worker(X, nodes, depth_based, left_son, right_son):
-        """
-        Compute the Importance Scores for each node along the Isolation Trees.
-        --------------------------------------------------------------------------------
-
-        Parameters
-        ----------
-        X: pd.DataFrame
-                Input dataset
-        depth_based: bool
-                Boolean variable used to decide weather to used the Depth Based or the Not Depth Based Importance
-                computation function.
-
-        Returns
-        ----------
-        Importances_list: np.array
-                List with the Importances values for all the nodes in the Isolation Tree.
-        Normal_vectors_list: np.array
-                List of all the normal vectors used in the splitting hyperplane creation.
-        """
-        Importances_list = np.zeros((X.shape[0], X.shape[1]))
-        Normal_vectors_list = np.zeros((X.shape[0], X.shape[1]))
-        for i, x in enumerate(X):
-            id = depth = 0
-            while True:
-                s = nodes[id]["point"]
-                if s is None:
-                    break
-                n = nodes[id]["normal"]
-                N = nodes[id]["numerosity"]
-                old_id = id
-                if x.dot(n) - s > 0:
-                    side = "left_importance"
-                    id = left_son[id]
-                else:
-                    side = "right_importance"
-                    id = right_son[id]
-                abs_n = np.abs(n)
-                singular_importance = abs_n * (N / (nodes[id]["numerosity"] + 1))
-                if depth_based == True:
-                    singular_importance /= 1 + depth
-                Importances_list[i] += singular_importance
-                Normal_vectors_list[i] += abs_n
-                nodes[old_id].setdefault(side, singular_importance)
-                nodes[old_id].setdefault("depth", depth)
-                depth += 1
-        return Importances_list, Normal_vectors_list
-
     def make_importance(self, X: npt.NDArray[np.float64], depth_based, X_shape):
         """
         Compute the Importance Scores for each node along the Isolation Trees.
@@ -113,22 +64,6 @@ class Extended_DIFFI_c(ExtendedIF_c):
         self.num_processes_fit = 1
         self.num_processes_anomaly = 1
 
-    @staticmethod
-    def make_tree_worker(
-        forest_segment: List[Extended_DIFFI_tree_c], X, subsample_size
-    ):
-        # subsets = []
-        for x in forest_segment:
-            if not subsample_size or subsample_size > X.shape[0]:
-                x.make_tree(X, 0, 0)
-            else:
-                indx = np.random.choice(X.shape[0], subsample_size, replace=False)
-                X_sub = X[indx, :]
-                x.make_tree(X_sub, 0, 0)
-                # subsets.append(indx)
-            x.convert_to_c_data()
-        return forest_segment
-
     def fit(self, X):
         """
         Fit the ExIFFI model.
@@ -170,16 +105,9 @@ class Extended_DIFFI_c(ExtendedIF_c):
                 self.subsets.append(indx)
             x.convert_to_c_data()
 
-    def set_num_processes(
-        self, num_processes_fit, num_processes_importances, num_processes_anomaly
-    ):
-        """
-        Set the number of processes to be used in the parallel computation
-        of the Global and Local Feature Importance.
-        """
-        self.num_processes_fit = num_processes_fit
-        self.num_processes_importances = num_processes_importances
-        self.num_processes_anomaly = num_processes_anomaly
+    def set_num_processes(self, *args, **kwargs):
+        """For compatibility with other models."""
+        pass
 
     def Importances(self, X, calculate, overwrite, depth_based):
         """
