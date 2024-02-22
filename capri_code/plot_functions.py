@@ -37,7 +37,7 @@ def barplot(name:str,df:pd.DataFrame,x_col:str,y_col:str,ylim_off:int=0,color=No
     plt.ylim(0,ylim+ylim_off)
     return ax
 
-def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=10,remove_xticks=False,rotate_xticks=False):
+def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,rotate_xticks=False):
     ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax)
     ylim = df[y_col].max() 
     ax.set_xlabel(x_col)
@@ -87,7 +87,7 @@ def multiple_time_tree_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],
     plt.ylim(0,ylim_off)
     plt.show()
 
-def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False):
+def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False):
     dfs_plot=[]
     for num_core in n_cores:
         df_100=df.groupby(['n_trees','n_cores']).get_group((100,num_core))
@@ -118,7 +118,7 @@ def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16
 Plot n_cores vs real_time for different number of trees
 """
 
-def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False,no_16=False):
+def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
@@ -180,7 +180,7 @@ def time_mem_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=1
 Plot n_cores vs cpu_efficiency for different number of trees
 """
 
-def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10,remove_yticks=False,no_16=False):
+def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
