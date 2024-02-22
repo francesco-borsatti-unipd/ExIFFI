@@ -132,11 +132,19 @@ def pre_process(path):
 
     return X_train.astype(np.float64), X_test.astype(np.float64)
 
+"""
+TO DO 
 
-def compute_imps(model, X_train, X_test, n_runs):
+Add parameter use_c (from command line) and if it is true we can call model.Global_Importances with the 
+ value of the parameter imps_and_anomaly_all_in_one (also this paramter is taken from the command line). In
+case use_c is false we will call model.Global_Importance as it is called right now. 
+
+"""
+
+def compute_imps(model, X_train, X_test, n_runs, imps_and_anomaly_all_in_one=False):
     print(f"shape of X_train: {X_train.shape}")
     print(f"shape of X_test: {X_test.shape}")
-    mem_MB_lst = []
+    mem_MB_lst = [] 
 
     imps = np.zeros(shape=(n_runs, X_train.shape[1]))
     for i in trange(n_runs, desc="Fit & Importances"):
@@ -144,9 +152,13 @@ def compute_imps(model, X_train, X_test, n_runs):
         model.fit(X_train)
         print("End fit")
         print("Start Global Importance")
-        imps[i, :] = model.Global_importance(
-            X_test, calculate=True, overwrite=False, depth_based=False
-        )
+        if imps_and_anomaly_all_in_one:
+            imps[i, :] = model.Global_importance(
+                X_test, calculate=True, overwrite=False, depth_based=False,
+                imps_and_anomaly_all_in_one=True)
+        else:
+            imps[i, :] = model.Global_importance(
+                X_test, calculate=True, overwrite=False, depth_based=False)
         print("End Global Importance")
         mem_MB_lst.append(psutil.Process(os.getpid()).memory_info().rss / 1000**2)
 
@@ -203,12 +215,11 @@ def parse_arguments():
         action="store_true",
         help="If set, use the C implementation of the Extended_DIFFI",
     )
-    # parser.add_argument(
-    #     "--n_threads",
-    #     type=int,
-    #     default=12,
-    #     help="Number of threads to use in the C implementation"
-    # )
+    parser.add_argument(
+        "--C_fast",
+        action="store_true",
+        help="If set, use the faster C implementation using imps_and_anomaly_all_in_one in the compute_imps function",
+    )
     parser.add_argument(
         "--filename",
         type=str,
@@ -233,6 +244,7 @@ def test_exiffi(
     n_runs_imps=10,
     filename=None,
     use_C=False,
+    C_fast=False,
 ):
     args_to_avoid = ["X_train", "X_test", "savedir", "args_to_avoid", "args"]
     args = dict()
@@ -276,7 +288,10 @@ def test_exiffi(
             )
 
         print("Call compute_imps")
-        imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps)
+        if use_C and C_fast:
+            imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps,imps_and_anomaly_all_in_one=True)
+        elif not C_fast:
+            imps, mem_MB = compute_imps(EDIFFI, X_train, X_test, n_runs_imps,imps_and_anomaly_all_in_one=False)
         print("End call compute_imps")
         ex_imps.append(imps)
         ex_mem_MB.append(mem_MB)
@@ -374,6 +389,7 @@ def main(args):
             n_cores_anomaly=n_cores_anomaly,
             filename=args.filename,
             use_C=args.use_C,
+            C_fast=args.C_fast
         )
 
 
