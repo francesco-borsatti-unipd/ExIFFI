@@ -38,10 +38,10 @@ def barplot(name:str,df:pd.DataFrame,x_col:str,y_col:str,ylim_off:int=0,color=No
     plt.ylim(0,ylim+ylim_off)
     return ax
 
-def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,rotate_xticks=False, color=None, remove_patches=False):
+def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,rotate_xticks=False, color=None, remove_patches=False,title_loc='left',bar_width=80):
     if color is not None:
         # ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax, color=color)
-        ax.bar(df[x_col], df[y_col], color=color, width=80)
+        ax.bar(df[x_col], df[y_col], color=color, width=bar_width)
     else:
         #ax.bar(df[x_col], df[y_col], width=80)
         ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax)
@@ -49,7 +49,7 @@ def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,r
     ylim = df[y_col].max()
     ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
-    ax.set_title(name,loc='left',color='red')
+    ax.set_title(name,loc=title_loc,color='red')
 
     if not remove_patches:
         for p in ax.patches:
@@ -126,6 +126,71 @@ def plot_bars_side_by_side(name:str,df:pd.DataFrame,df_fast:pd.DataFrame,num_cor
     plt.show()
 
 
+def plot_bars_side_by_side_cores(name:str,df:pd.DataFrame,df_fast:pd.DataFrame,num_cores, n_trees, plotsize:tuple,ylim_off:int=0,x_offset:int=0):
+    
+    grid = namedtuple("Grid", ["rows", "cols"])(1, len(n_trees))
+
+    dfs_norm = []
+    dfs_fast = []
+
+    for num_tree in n_trees:
+        df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
+        df_4=df.groupby(['n_cores','n_trees']).get_group((4,num_tree))
+        df_8=df.groupby(['n_cores','n_trees']).get_group((8,num_tree))
+        df_12=df.groupby(['n_cores','n_trees']).get_group((12,num_tree))
+        dfs_norm.append(
+            pd.DataFrame(
+                {
+                    "n_cores": np.array(num_cores)-x_offset,
+                    "real_time_mean": [
+                        np.mean(df_1["real_time_single_run"]),
+                        np.mean(df_4["real_time_single_run"]),
+                        np.mean(df_8["real_time_single_run"]),
+                        np.mean(df_12["real_time_single_run"])
+                    ],
+                }
+            )
+        )
+        df_1=df_fast.groupby(['n_cores','n_trees']).get_group((1,num_tree))
+        df_4=df_fast.groupby(['n_cores','n_trees']).get_group((4,num_tree))
+        df_8=df_fast.groupby(['n_cores','n_trees']).get_group((8,num_tree))
+        df_12=df_fast.groupby(['n_cores','n_trees']).get_group((12,num_tree))
+        dfs_fast.append(
+            pd.DataFrame(
+                {
+                    "n_cores": np.array(num_cores)+x_offset,
+                    "real_time_mean": [
+                        np.mean(df_1["real_time_single_run"]),
+                        np.mean(df_4["real_time_single_run"]),
+                        np.mean(df_8["real_time_single_run"]),
+                        np.mean(df_12["real_time_single_run"])
+                    ],
+                }
+            )
+        )
+
+    fig, axes = plt.subplots(grid.rows, grid.cols, figsize=plotsize)
+    names = [
+        f"{name} 100 trees",
+        f"{name} 300 trees",
+        f"{name} 600 trees"
+    ]
+
+    for i, (ax, exp_name, df_norm, df_fast) in enumerate(zip(axes.flatten(), names, dfs_norm, dfs_fast)):
+        barplot_subplots(ax, exp_name, df_norm, "n_cores", "real_time_mean", ylim_off=ylim_off, color="blue", remove_xticks=True, remove_patches=True,bar_width=1)
+        a = barplot_subplots(ax, exp_name, df_fast, "n_cores", "real_time_mean", ylim_off=ylim_off, color="red", remove_xticks=True, remove_patches=True,bar_width=1)
+        ax.set_xticks(num_cores)
+
+    a.plot([], [], color="red", label="Fast")
+    a.plot([], [], color="blue", label="Normal")
+
+    a.legend(loc="upper right", framealpha=1, facecolor='white')
+    plt.tight_layout()
+    plt.show()
+
+
+
+
 def multiple_time_tree_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=10):
     """
     Plot n_trees vs real_time for different number of cores
@@ -174,7 +239,7 @@ def set_y_and_x(axes, dfs, col_to_use, x_ticks, ylim_off=0):
     #    ax.set_xticks(x_ticks)
 
 
-def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False):
+def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,title_loc='left'):
     dfs_plot=[]
     for num_core in n_cores:
         df_100=df.groupby(['n_trees','n_cores']).get_group((100,num_core))
@@ -191,7 +256,7 @@ def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16
 
 
     for i, (ax, exp_name, df) in enumerate(zip(axes.flatten(), names, dfs)):
-        barplot_subplots(ax, exp_name, df,'n_trees','real_time_mean',ylim_off=ylim_off)
+        barplot_subplots(ax, exp_name, df,'n_trees','real_time_mean',ylim_off=ylim_off,title_loc=title_loc)
 
     #dataframe=df_for_plots(data,name)
     #multiple_time_tree_plot(name,dataframe,n_cores=n_cores,n_trees=n_trees,ylim_off=ylim_off)
@@ -208,7 +273,7 @@ def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16
 Plot n_cores vs real_time for different number of trees
 """
 
-def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False):
+def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False,title_loc='left'):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
@@ -232,7 +297,7 @@ def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_t
     names = [f'{name} 100 trees',f'{name} 300 trees',f'{name} 600 trees']
 
     for i, (ax, name, df) in enumerate(zip(axes.flatten(), names, dfs)):
-        barplot_subplots(ax, name, df,'n_cores','real_time_mean',ylim_off=ylim_off)
+        barplot_subplots(ax, name, df,'n_cores','real_time_mean',ylim_off=ylim_off,title_loc=title_loc)
 
     if remove_yticks:
         plt.yticks([])
@@ -272,7 +337,7 @@ def time_mem_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=1
 Plot n_cores vs cpu_efficiency for different number of trees
 """
 
-def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False):
+def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False,no_16=False,title_loc='left'):
     dfs_plot=[]
     for num_tree in n_trees:
         df_1=df.groupby(['n_cores','n_trees']).get_group((1,num_tree))
@@ -296,7 +361,7 @@ def time_eff_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_tr
     names = [f'{name} 100 trees',f'{name} 300 trees',f'{name} 600 trees']
 
     for i, (ax, name, df) in enumerate(zip(axes.flatten(), names, dfs)):
-        barplot_subplots(ax, name, df,'n_cores','cpu_efficiency',ylim_off=ylim_off)
+        barplot_subplots(ax, name, df,'n_cores','cpu_efficiency',ylim_off=ylim_off,title_loc=title_loc)
 
     if remove_yticks:
         plt.yticks([])
