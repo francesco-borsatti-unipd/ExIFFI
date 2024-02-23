@@ -43,8 +43,9 @@ def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,r
         # ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax, color=color)
         ax.bar(df[x_col], df[y_col], color=color, width=80)
     else:
+        #ax.bar(df[x_col], df[y_col], width=80)
         ax = sns.barplot(x=x_col, y=y_col, data=df, width=0.3, ax=ax)
-        
+ 
     ylim = df[y_col].max()
     ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
@@ -54,6 +55,8 @@ def barplot_subplots(ax, name, df, x_col, y_col,ylim_off=0,remove_xticks=False,r
         for p in ax.patches:
             ax.annotate(f'{p.get_height():.2f}', (p.get_x() + p.get_width() / 2., p.get_height()),
                         ha='center', va='center', xytext=(0, 10), textcoords='offset points')
+    # set y log scale
+    #ax.set_yscale('log')
 
     if remove_xticks:
         ax.set_xticks([])
@@ -154,6 +157,23 @@ def multiple_time_tree_plot(name,df,n_cores=[1,4,8,12,16],n_trees=[100,300,600],
     plt.ylim(0,ylim_off)
     plt.show()
 
+def set_y_and_x(axes, dfs, col_to_use, x_ticks, ylim_off=0):
+    # get the max y value
+    y_max = max([df[col_to_use].max() for df in dfs])
+    # create a list of the yticks
+    y_ticks = np.logspace(0, np.log10( y_max ), num=5)
+
+    for ax in axes.flatten():
+        ax.set_yscale('log')
+        ax.set_ylim(0, y_max + ylim_off)
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels([f'{int(y)}' for y in y_ticks])
+        break
+
+    #for ax in axes.flatten():
+    #    ax.set_xticks(x_ticks)
+
+
 def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16],n_trees=[100,300,600],ylim_off=0,remove_yticks=False):
     dfs_plot=[]
     for num_core in n_cores:
@@ -172,12 +192,14 @@ def time_tree_plot(data,name,df,grid=(1,5),plotsize=(15,10),n_cores=[1,4,8,12,16
 
     for i, (ax, exp_name, df) in enumerate(zip(axes.flatten(), names, dfs)):
         barplot_subplots(ax, exp_name, df,'n_trees','real_time_mean',ylim_off=ylim_off)
- 
+
     #dataframe=df_for_plots(data,name)
     #multiple_time_tree_plot(name,dataframe,n_cores=n_cores,n_trees=n_trees,ylim_off=ylim_off)
 
     if remove_yticks:
         plt.yticks([])
+
+    set_y_and_x(axes, dfs, col_to_use='real_time_mean', x_ticks=n_trees, ylim_off=ylim_off)
 
     plt.tight_layout()
     plt.show()
@@ -205,7 +227,7 @@ def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_t
                 'real_time_mean':[np.mean(df_1['real_time_single_run']),np.mean(df_4['real_time_single_run']),np.mean(df_8['real_time_single_run']),np.mean(df_12['real_time_single_run']),np.mean(df_16['real_time_single_run'])]
             }))
 
-    fig, axes = plt.subplots(grid[0],grid[1],figsize=plotsize)
+    fig, axes = plt.subplots(grid[0],grid[1],figsize=plotsize, sharey=True)
     dfs = dfs_plot
     names = [f'{name} 100 trees',f'{name} 300 trees',f'{name} 600 trees']
 
@@ -214,6 +236,8 @@ def time_core_plot(name,df,grid=(1,3),plotsize=(15,10),n_cores=[1,4,8,12,16],n_t
 
     if remove_yticks:
         plt.yticks([])
+
+    set_y_and_x(axes, dfs, col_to_use='real_time_mean', x_ticks=n_cores, ylim_off=ylim_off)
 
     plt.tight_layout()
     plt.show()
