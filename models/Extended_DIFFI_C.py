@@ -181,7 +181,7 @@ class Extended_DIFFI_c(ExtendedIF_c):
         calculate,
         overwrite,
         depth_based=False,
-        imps_and_anomaly_all_in_one=False,
+        imps_and_anomaly_all_in_one=True,
     ):
         """
         Compute the Global Feature Importance vector for a set of input samples
@@ -217,8 +217,8 @@ class Extended_DIFFI_c(ExtendedIF_c):
             print("Anomaly score already computed during importances computation")
         else:
             print("Start computing Anomaly Score")
-            anomaly_scores = self.Anomaly_Score(X)
-            # anomaly_scores = self.c_AnomalyScore(X)
+            # anomaly_scores = self.Anomaly_Score(X)
+            anomaly_scores = self.c_AnomalyScore(X)
             print("End computing Anomaly Score")
 
         ind = np.argpartition(anomaly_scores, -int(0.1 * len(X)))[-int(0.1 * len(X)) :]
