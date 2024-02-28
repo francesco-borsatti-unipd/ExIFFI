@@ -122,8 +122,9 @@ def plot_bars_side_by_side(
     num_cores,
     n_trees,
     plotsize: tuple,
-    ylim_off: int = 0,
-    x_offset: int = 0,
+    ylim_off: float = 0.0,
+    x_offset: float = 0.0,
+    labels=None,
 ):
     # df, df_fast
     grid = namedtuple("Grid", ["rows", "cols"])(1, len(num_cores))
@@ -199,8 +200,12 @@ def plot_bars_side_by_side(
         )
         ax.set_xticks(n_trees)
 
-    a.plot([], [], color="red", label="Fast")
-    a.plot([], [], color="blue", label="Normal")
+    if labels is not None:
+        a.plot([], [], color="red", label=labels[0])
+        a.plot([], [], color="blue", label=labels[1])
+    else:
+        a.plot([], [], color="red", label="Fast")
+        a.plot([], [], color="blue", label="Normal")
 
     a.legend(loc="upper right", framealpha=1, facecolor="white")
     plt.tight_layout()
@@ -214,8 +219,10 @@ def plot_bars_side_by_side_cores(
     num_cores,
     n_trees,
     plotsize: tuple,
-    ylim_off: int = 0,
-    x_offset: int = 0,
+    ylim_off: float = 0.0,
+    x_offset: float = 0.0,
+    labels=None,
+    ylog=False,
 ):
 
     grid = namedtuple("Grid", ["rows", "cols"])(1, len(n_trees))
@@ -259,7 +266,7 @@ def plot_bars_side_by_side_cores(
             )
         )
 
-    fig, axes = plt.subplots(grid.rows, grid.cols, figsize=plotsize)
+    fig, axes = plt.subplots(grid.rows, grid.cols, figsize=plotsize, sharey=True)
     names = [f"{name} 100 trees", f"{name} 300 trees", f"{name} 600 trees"]
 
     for i, (ax, exp_name, df_norm, df_fast) in enumerate(
@@ -291,8 +298,17 @@ def plot_bars_side_by_side_cores(
         )
         ax.set_xticks(num_cores)
 
-    a.plot([], [], color="red", label="Fast")
-    a.plot([], [], color="blue", label="Normal")
+    if ylog:
+        set_y_and_x(
+            axes, dfs_norm, col_to_use="real_time_mean", x_ticks=num_cores, ylim_off=ylim_off
+        )
+
+    if labels is not None:
+        a.plot([], [], color="red", label=labels[0])
+        a.plot([], [], color="blue", label=labels[1])
+    else:
+        a.plot([], [], color="red", label="Fast")
+        a.plot([], [], color="blue", label="Normal")
 
     a.legend(loc="upper right", framealpha=1, facecolor="white")
     plt.tight_layout()
