@@ -368,7 +368,7 @@ class ExtendedTree:
         Returns:
             Anomaly score for each data point in the dataset.
         """
-        return self.corrected_depth[ids],
+        return self.corrected_depth[ids]
     
     def importances(self,ids:np.array) -> tuple[np.array,np.array]:
 
@@ -483,8 +483,7 @@ class ExtendedIsolationForest():
         """
         self.compute_ids(X)
         predictions=[tree.predict(X,self.ids[i]) for i,tree in enumerate(self.trees)]
-        values = np.array([p[0] for p in predictions])
-        return np.power(2,-np.mean([value for value in values], axis=0))
+        return np.power(2,-np.mean(predictions, axis=0))
     
     def _predict(self,
                  X:np.array,
