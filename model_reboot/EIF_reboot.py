@@ -244,10 +244,10 @@ class ExtendedTree:
         self.path_to[0,0] = 0
         self.extend_tree(node_id=0, X=X, depth=0)
         self.corrected_depth = np.array([
-            (c_factor(k)+sum(path>-1))/c_factor(self.n)
+            c_factor(k)+sum(path>-1)
             for i,(k,path) in enumerate(zip(self.node_size,self.path_to))
             if i<self.node_count
-        ])
+        ])/c_factor(self.n)
 
     def create_new_node(self,
                         parent_id:int,
@@ -291,13 +291,15 @@ class ExtendedTree:
             The method extends the tree and does not return any value.
         """
 
-        stack = [(0, X, 0)] 
-        
+        # stack:list[tuple[int, np.ndarray, int]] = [(0, X, 0)]
+        stack = [(0, X, 0)]
+
         while stack:
             node_id, data, depth = stack.pop()
             
             self.node_size[node_id] = len(data)
             if self.node_size[node_id] <= self.min_sample or depth >= self.max_depth:
+                # NOTE: siamo arrivati ad una foglia. Ora sarebbe opportuno calcolare la corrected_depth
                 continue
             
             self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)         
@@ -368,7 +370,7 @@ class ExtendedTree:
         Returns:
             Anomaly score for each data point in the dataset.
         """
-        return self.corrected_depth[ids],
+        return self.corrected_depth[ids]
     
     def importances(self,ids:np.array) -> tuple[np.array,np.array]:
 
@@ -466,7 +468,8 @@ class ExtendedIsolationForest():
         Returns:
             The method computes the leaf node ids and does not return any value.
         """
-        if self.ids is None or self.X.shape != X.shape:
+        # if the results 
+        if self.ids is None or self.X.shape != X.shape or np.array_equal(self.X,X) is False:
             self.X = X
             self.ids = np.array([tree.leaf_ids(X) for tree in self.trees])
 
@@ -482,9 +485,8 @@ class ExtendedIsolationForest():
             Anomaly score for each data point in the dataset.
         """
         self.compute_ids(X)
-        predictions=[tree.predict(X,self.ids[i]) for i,tree in enumerate(self.trees)]
-        values = np.array([p[0] for p in predictions])
-        return np.power(2,-np.mean([value for value in values], axis=0))
+        predictions=[tree.predict(self.ids[i]) for i,tree in enumerate(self.trees)]
+        return np.power(2,-np.mean(predictions, axis=0))
     
     def _predict(self,
                  X:np.array,
