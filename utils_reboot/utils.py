@@ -8,8 +8,8 @@ from collections import namedtuple
 from model_reboot.EIF_reboot import ExtendedIsolationForest
 from utils_reboot.datasets import Dataset
 from sklearn.ensemble import IsolationForest 
-from pyod.models.dif import DIF as oldDIF
-from pyod.models.auto_encoder import AutoEncoder as oldAutoEncoder
+# from pyod.models.dif import DIF as oldDIF
+# from pyod.models.auto_encoder import AutoEncoder as oldAutoEncoder
 
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, average_precision_score, balanced_accuracy_score
 
@@ -51,111 +51,111 @@ class sklearn_IsolationForest(IsolationForest):
         score=self.decision_function(X)
         return -1*score+0.5
 
-class DIF(oldDIF):
+# class DIF(oldDIF):
 
-    """
-    Wrapper of `pyod.models.dif.DIF`
-    """
+#     """
+#     Wrapper of `pyod.models.dif.DIF`
+#     """
 
-    def __init__(self, **kwargs):
+#     def __init__(self, **kwargs):
 
-        """
-        Constructor of the class `DIF` which uses the constructor of the parent class `DIF` from `pyod.models.dif` module.
+#         """
+#         Constructor of the class `DIF` which uses the constructor of the parent class `DIF` from `pyod.models.dif` module.
         
-        Attributes:
-            name (str): Add the name attribute to the class.
-        """
-        super().__init__(**kwargs)
-        self.name = "DIF"
+#         Attributes:
+#             name (str): Add the name attribute to the class.
+#         """
+#         super().__init__(**kwargs)
+#         self.name = "DIF"
     
-    def predict(self, X:np.array) -> np.array:
+#     def predict(self, X:np.array) -> np.array:
 
-        """
-        Overwrite the `predict` method of the parent class `DIF` from `pyod.models.dif` module to obtain the
-        Anomaly Scores instead of the class labels (i.e. inliers and outliers)
+#         """
+#         Overwrite the `predict` method of the parent class `DIF` from `pyod.models.dif` module to obtain the
+#         Anomaly Scores instead of the class labels (i.e. inliers and outliers)
 
-        Args:
-            X: Input dataset
+#         Args:
+#             X: Input dataset
 
-        Returns:
-            Anomaly Scores 
+#         Returns:
+#             Anomaly Scores 
 
-        """
+#         """
 
-        score=self.decision_function(X)
-        return score
+#         score=self.decision_function(X)
+#         return score
     
-    def _predict(self,
-                 X:np.array,
-                 p:float)->np.array:
+#     def _predict(self,
+#                  X:np.array,
+#                  p:float)->np.array:
 
-        """
-        Method to predict the class labels based on the Anomaly Scores and the contamination factor `p`
+#         """
+#         Method to predict the class labels based on the Anomaly Scores and the contamination factor `p`
 
-        Args:
-            X: Input dataset
-            p: Contamination factor
+#         Args:
+#             X: Input dataset
+#             p: Contamination factor
 
-        Returns:
-            Class labels (i.e. 0 for inliers and 1 for outliers)
-        """
+#         Returns:
+#             Class labels (i.e. 0 for inliers and 1 for outliers)
+#         """
 
-        An_score = self.predict(X)
-        y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
-        return y_hat
+#         An_score = self.predict(X)
+#         y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
+#         return y_hat
 
     
-class AutoEncoder(oldAutoEncoder):
+# class AutoEncoder(oldAutoEncoder):
 
-    """
-    Wrapper of `pyod.models.auto_encoder.AutoEncoder`
-    """
+#     """
+#     Wrapper of `pyod.models.auto_encoder.AutoEncoder`
+#     """
 
-    def __init__(self, **kwargs):
+#     def __init__(self, **kwargs):
 
-        """
-        Constructor of the class `AutoEncoder` which uses the constructor of the parent class `AutoEncoder` from `pyod.models.auto_encoder` module.
+#         """
+#         Constructor of the class `AutoEncoder` which uses the constructor of the parent class `AutoEncoder` from `pyod.models.auto_encoder` module.
 
-        Attributes:
-            name (str): Add the name attribute to the class.
-        """
+#         Attributes:
+#             name (str): Add the name attribute to the class.
+#         """
 
-        super().__init__(**kwargs)
-        self.name = "AnomalyAutoencoder"
+#         super().__init__(**kwargs)
+#         self.name = "AnomalyAutoencoder"
     
-    def predict(self, X:np.array) -> np.array:
+#     def predict(self, X:np.array) -> np.array:
 
-        """
-        Overwrite the `predict` method of the parent class `AutoEncoder` from `pyod.models.auto_encoder` module to obtain the
-        Anomaly Scores instead of the class labels (i.e. inliers and outliers)
+#         """
+#         Overwrite the `predict` method of the parent class `AutoEncoder` from `pyod.models.auto_encoder` module to obtain the
+#         Anomaly Scores instead of the class labels (i.e. inliers and outliers)
 
-        Args:
-            X: Input dataset
+#         Args:
+#             X: Input dataset
 
-        Returns:
-            Anomaly Scores
-        """
-        score=self.decision_function(X)
-        return score
+#         Returns:
+#             Anomaly Scores
+#         """
+#         score=self.decision_function(X)
+#         return score
     
-    def _predict(self,
-                 X:np.array,
-                 p:float)-> np.array:
+#     def _predict(self,
+#                  X:np.array,
+#                  p:float)-> np.array:
 
-        """
-        Method to predict the class labels based on the Anomaly Scores and the contamination factor `p`
+#         """
+#         Method to predict the class labels based on the Anomaly Scores and the contamination factor `p`
 
-        Args:
-            X: Input dataset
-            p: Contamination factor
+#         Args:
+#             X: Input dataset
+#             p: Contamination factor
 
-        Returns:
-            Class labels (i.e. 0 for inliers and 1 for outliers)
-        """
+#         Returns:
+#             Class labels (i.e. 0 for inliers and 1 for outliers)
+#         """
 
-        An_score = self.predict(X)
-        y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
-        return y_hat
+#         An_score = self.predict(X)
+#         y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
+#         return y_hat
     
 
 def save_element(element:Union[np.array,list,pd.DataFrame,Type[Precisions],Type[NewPrecisions],Type[Precisions_random]],

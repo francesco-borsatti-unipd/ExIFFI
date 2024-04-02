@@ -1,12 +1,13 @@
 from typing import Type,Union
 
 import sys
-sys.path.append('..')
-
 import os
-os.chdir("../")
-cwd = os.getcwd()
-os.chdir("experiments")
+
+realpath = os.path.realpath(__file__) # true path of this script
+realpath = os.path.dirname(realpath) # go up one dir
+realpath = os.path.dirname(realpath) # go up one dir
+sys.path.append(realpath) # appened to sys path
+
 import numpy as np
 import numpy.typing as npt
 from tqdm import tqdm,trange
@@ -25,7 +26,9 @@ import pickle
 import time
 import pandas as pd
 
-filename = cwd + "/utils_reboot/time_scaling_test_dei_new.pickle"
+# cwd = os.getcwd()
+# cwd = os.path.dirname(cwd)
+# filename = cwd + "/utils_reboot/time_scaling_test_dei_new.pickle"
 
 # dict_time = {1:{"fit":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}}, 
 #         "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
@@ -34,17 +37,17 @@ filename = cwd + "/utils_reboot/time_scaling_test_dei_new.pickle"
 #         "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
 #         "importances":{"EXIFFI+":{},"EXIFFI":{},"DIFFI":{},"RandomForest":{}}}}
 
-if not os.path.exists(filename):
+# if not os.path.exists(filename):
 
-    dict_time = {"fit":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}}, 
-            "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
-            "importances":{"EXIFFI+":{},"EXIFFI":{},"DIFFI":{},"RandomForest":{}}}
+#     dict_time = {"fit":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}}, 
+#             "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
+#             "importances":{"EXIFFI+":{},"EXIFFI":{},"DIFFI":{},"RandomForest":{}}}
     
-    with open(filename, "wb") as file:
-        pickle.dump(dict_time, file)
+#     with open(filename, "wb") as file:
+#         pickle.dump(dict_time, file)
                
-with open(filename, "rb") as file:
-    dict_time = pickle.load(file)
+# with open(filename, "rb") as file:
+#     dict_time = pickle.load(file)
 
     
 
@@ -133,7 +136,7 @@ def experiment_global_importances(I:Type[ExtendedIsolationForest],
                                p:float=0.1,
                                model:str="EIF+",
                                interpretation:str="EXIFFI+"
-                               ) -> tuple[np.array,dict,str,str]:
+                               ) -> tuple[np.array, float]:
     
     """
     Compute the global feature importances for an interpration model on a specific dataset for a number of runs.
