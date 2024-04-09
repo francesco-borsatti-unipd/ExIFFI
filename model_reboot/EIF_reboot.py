@@ -243,11 +243,7 @@ class ExtendedTree:
 
         self.path_to[0,0] = 0
         self.extend_tree(node_id=0, X=X, depth=0)
-        self.corrected_depth = np.array([
-            c_factor(k)+sum(path>-1)
-            for i,(k,path) in enumerate(zip(self.node_size,self.path_to))
-            if i<self.node_count
-        ])/c_factor(self.n)
+        self.corrected_depth = self.corrected_depth/c_factor(len(X))
 
     def create_new_node(self,
                         parent_id:int,
@@ -299,7 +295,8 @@ class ExtendedTree:
             
             self.node_size[node_id] = len(data)
             if self.node_size[node_id] <= self.min_sample or depth >= self.max_depth:
-                # NOTE: siamo arrivati ad una foglia. Ora sarebbe opportuno calcolare la corrected_depth
+                # reached a leaf node
+                self.corrected_depth[node_id] = c_factor(self.node_size[node_id]) + depth + 1
                 continue
             
             self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)         
