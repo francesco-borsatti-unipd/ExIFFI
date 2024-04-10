@@ -304,14 +304,13 @@ class ExtendedTree:
             dist = np.dot(np.ascontiguousarray(data), np.ascontiguousarray(self.normals[node_id]))
         
             if self.plus:
-                #self.intercepts[node_id] = np.random.normal(np.mean(dist),np.std(dist)*self.eta)
                 self.intercepts[node_id] = np.random.normal(np.mean(dist),np.std(dist)*self.eta)
             else:
                 self.intercepts[node_id] = np.random.uniform(np.min(dist),np.max(dist))
             mask = dist <= self.intercepts[node_id]  
             
             X_left = data[mask]
-            X_right = data[~mask,:]
+            X_right = data[~mask]
 
             self.importances_left[node_id] = np.abs(self.normals[node_id])*(self.node_size[node_id]/(len(X_left)+1))
             self.importances_right[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_right)+1)
@@ -498,8 +497,8 @@ class ExtendedIsolationForest():
         Returns:
            Class labels (i.e. 0 for inliers and 1 for outliers)
         """
-        An_score = self.predict(X)
-        y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
+        anomaly_score = self.predict(X)
+        y_hat = anomaly_score > np.percentile(anomaly_score, 100 * (1-p), method='inverted_cdf')
         return y_hat
 
     def _importances(self,
@@ -519,8 +518,8 @@ class ExtendedIsolationForest():
         """
         importances = np.zeros(X.shape)
         normals = np.zeros(X.shape)
-        for i,T in enumerate(self.trees):
-            importance, normal = T.importances(ids[i])
+        for i,tree in enumerate(self.trees):
+            importance, normal = tree.importances(ids[i])
             importances += importance
             normals += normal
         return importances/self.n_estimators, normals/self.n_estimators
