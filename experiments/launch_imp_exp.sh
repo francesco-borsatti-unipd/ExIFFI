@@ -13,7 +13,8 @@ python $SCRIPT_PATH \
         --dataset_path $DATASET_PATH \
         --model "EIF+" \
         --interpretation "EXIFFI+" \
-        --scenario 2 
+        --pre_process \
+        --scenario 1
 
 # for scenario in "${SCENARIOS[@]}"; do
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_PATH="test_local_importances.py"
+SCRIPT_PATH="test_local_scoremaps.py"
 
 DATASETS="bisect"
 
