@@ -93,27 +93,57 @@ class Dataset:
                 
             self.X = mat['X'].astype(float)
             self.y = mat['y'].reshape(-1, 1).astype(float)
+
         except FileNotFoundError:
             try:
                 datapath = self.path + self.name + ".csv"
-                T = pd.read_csv(datapath)
+                if self.name == "glass_DIFFI" or self.name == "piade_s2":
+                    T = pd.read_csv(datapath)
+                else:
+                    T = pd.read_csv(datapath,index_col=0)
+                #import ipdb; ipdb.set_trace()
                 if 'Unnamed: 0' in T.columns:
                     T = T.drop(columns=['Unnamed: 0'])
-                self.X = T['X'].to_numpy(dtype=float)
-                self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
+                self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
+                self.y = T.loc[:,"Target"].to_numpy(float)
             except Exception as e:
                 try:
                     datapath = self.path + self.name + ".csv"
-                    if self.name == "glass_DIFFI":
-                        T = pd.read_csv(datapath)
-                    else:
-                        T = pd.read_csv(datapath,index_col=0)
+                    T = pd.read_csv(datapath)
+                    
                     if 'Unnamed: 0' in T.columns:
                         T = T.drop(columns=['Unnamed: 0'])
-                    self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
-                    self.y = T.loc[:,"Target"].to_numpy(float)
+                    self.X = T['X'].to_numpy(dtype=float)
+                    self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
                 except:
                     raise Exception("The dataset name is not valid") from e
+
+
+
+
+
+        # except FileNotFoundError:
+        #     try:
+        #         datapath = self.path + self.name + ".csv"
+        #         T = pd.read_csv(datapath)
+        #         #import ipdb; ipdb.set_trace()
+        #         if 'Unnamed: 0' in T.columns:
+        #             T = T.drop(columns=['Unnamed: 0'])
+        #         self.X = T['X'].to_numpy(dtype=float)
+        #         self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
+        #     except Exception as e:
+        #         try:
+        #             datapath = self.path + self.name + ".csv"
+        #             if self.name == "glass_DIFFI":
+        #                 T = pd.read_csv(datapath)
+        #             else:
+        #                 T = pd.read_csv(datapath,index_col=0)
+        #             if 'Unnamed: 0' in T.columns:
+        #                 T = T.drop(columns=['Unnamed: 0'])
+        #             self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
+        #             self.y = T.loc[:,"Target"].to_numpy(float)
+        #         except:
+        #             raise Exception("The dataset name is not valid") from e
 
 
     def __repr__(self) -> str:
