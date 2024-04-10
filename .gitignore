@@ -1,5 +1,4 @@
 __pycache__/
-results/
 src/test.py
 src/test_std
 data/data_DIFFI/
@@ -12,3 +11,5 @@ utils_reboot/time_dict_backup/
 
 # Mac OS files
 *.DS_Store
+
+
