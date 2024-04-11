@@ -299,7 +299,7 @@ class ExtendedTree:
                 self.corrected_depth[node_id] = c_factor(self.node_size[node_id]) + depth + 1
                 continue
             
-            self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)         
+            self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
             
             dist = np.dot(np.ascontiguousarray(data), np.ascontiguousarray(self.normals[node_id]))
         
@@ -312,8 +312,12 @@ class ExtendedTree:
             X_left = data[mask]
             X_right = data[~mask]
 
-            self.importances_left[node_id] = np.abs(self.normals[node_id])*(self.node_size[node_id]/(len(X_left)+1))
-            self.importances_right[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_right)+1)
+            # DEBUG: for exact match with the original implementation, do the following instead of computing the partial importance (slower)
+            # self.importances_left[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_left)+1)
+            # self.importances_right[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_right)+1)
+            partial_importance = np.abs(self.normals[node_id])*self.node_size[node_id]
+            self.importances_left[node_id] = partial_importance/(len(X_left)+1)
+            self.importances_right[node_id] = partial_importance/(len(X_right)+1)
             
             left_child = self.create_new_node(node_id,-1)
             right_child = self.create_new_node(node_id,1)
@@ -381,7 +385,7 @@ class ExtendedTree:
         """
         importances,normals = calculate_importances(
             self.path_to[ids], 
-            self.path_to_Right_Left[ids], 
+            self.path_to_Right_Left[ids], # directions
             self.importances_left, 
             self.importances_right, 
             self.normals, 
