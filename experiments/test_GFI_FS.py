@@ -108,7 +108,7 @@ if not os.path.exists(path):
 path_experiments = cwd +"/experiments/results/"+dataset.name+"/experiments"
 if not os.path.exists(path_experiments):
     os.makedirs(path_experiments)
-path_plots_imp = cwd +"/experiments/results/"+dataset.name+"/plots_new/imp_plots"
+path_plots_imp = cwd +"/experiments/results/"+dataset.name+"/plots/imp_plots"
 if not os.path.exists(path_plots_imp):
     os.makedirs(path_plots_imp)
 
@@ -176,7 +176,7 @@ random = feature_selection(I, dataset, feat_order, 10, inverse=True, random=True
 data_random = Precisions_random(random, dataset.name, model)
 save_fs_prec_random(data_random, path_experiment_model_interpretation_fs_random)
 
-path_plots_fs = cwd +"/experiments/results/"+dataset.name+"/plots_new/fs_plots"
+path_plots_fs = cwd +"/experiments/results/"+dataset.name+"/plots/fs_plots"
 if not os.path.exists(path_plots_fs):
     os.makedirs(path_plots_fs)
 

@@ -1,14 +1,13 @@
 import sys
 import os
 cwd = os.getcwd()
-#os.chdir('/home/davidefrizzo/Desktop/PHD/ExIFFI/experiments')
 sys.path.append("..")
 from collections import namedtuple
 
 from utils_reboot.experiments import *
+from utils_reboot.utils import *
 from utils_reboot.datasets import *
 from utils_reboot.plots import *
-from utils_reboot.utils import *
 
 
 from model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
@@ -27,16 +26,19 @@ parser.add_argument('--max_samples', type=str, default='auto', help='EIF paramet
 parser.add_argument('--contamination', type=float, default=0.1, help='Global feature importances parameter: contamination')
 parser.add_argument('--n_runs', type=int, default=40, help='Global feature importances parameter: n_runs')
 parser.add_argument('--pre_process',action='store_true', help='If set, preprocess the dataset')
-parser.add_argument('--model', type=str, default="EIF", help='Model to use: IF, EIF, EIF+')
-parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: EXIFFI, DIFFI, RandomForest')
+parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF+, C_EIF+]')
+parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI+, C_EXIFFI+]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
 # Parse the arguments
 args = parser.parse_args()
 
-assert args.model in ["IF", "EIF", "EIF+"], "Model not recognized"
-assert args.interpretation in ["EXIFFI+", "EXIFFI", "DIFFI", "RandomForest"], "Interpretation not recognized"
-if args.interpretation == "DIFFI":
-    assert args.model=="IF", "DIFFI can only be used with the IF model"
+assert args.model in ["EIF+","C_EIF+"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
+assert args.interpretation in ["EXIFFI+", "C_EXIFFI+"], "Interpretation not recognized"
+if args.interpretation == "EXIFFI+":
+    assert args.model=="EIF+", "EXIFFI+ can only be used with the EIF+ model"
+if args.interpretation == "C_EXIFFI+":
+    assert args.model=="C_EIF+", "C_EXIFFI+ can only be used with the C_EIF+ model"
+
 
 # Access the arguments
 dataset_name = args.dataset_name
@@ -53,13 +55,8 @@ model = args.model
 interpretation = args.interpretation
 scenario = args.scenario
 
-# print(f"Dataset: {dataset_name}")
-# print(f"Path: {dataset_path}")
-# quit()
-
 dataset = Dataset(dataset_name, path = dataset_path)
 dataset.drop_duplicates()
-
 
 # Downsample datasets with more than 7500 samples
 if dataset.shape[0] > 7500:
@@ -67,7 +64,6 @@ if dataset.shape[0] > 7500:
 
 
 if scenario==2:
-    #dataset.split_dataset(train_size=0.8,contamination=0)
     dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
 
 # Preprocess the dataset
@@ -82,19 +78,20 @@ else:
     dataset.initialize_train_test()
     print("#"*50)
 
+#import ipdb; ipdb.set_trace()
+
 
 if model == "IF":
     if interpretation == "EXIFFI":
         I = IsolationForest(n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
     elif interpretation == "DIFFI" or interpretation == "RandomForest":
         I = sklearn_IsolationForest(n_estimators=n_estimators, max_samples=max_samples)
-elif model == "EIF":
-    I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 elif model == "EIF+":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+# For the moment EIF+ and C_EIF+ are the same model, modify here when we have the C implementation of ExtendedIsolationForest
+elif model == "C_EIF+":
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 
-#cwd = '/home/davidefrizzo/Desktop/PHD/ExIFFI'
-    
 os.chdir('../')
 cwd=os.getcwd()
 
@@ -113,7 +110,7 @@ if not os.path.exists(path):
 path_experiments = cwd +"/experiments/results/"+dataset.name+"/experiments"
 if not os.path.exists(path_experiments):
     os.makedirs(path_experiments)
-path_plots = cwd +"/experiments/results/"+dataset.name+"/plots_new/imp_plots"
+path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/imp_plots"
 if not os.path.exists(path_plots):
     os.makedirs(path_plots)
 
@@ -136,7 +133,7 @@ if not os.path.exists(path_experiment_model_interpretation_scenario):
     os.makedirs(path_experiment_model_interpretation_scenario)
     
 #Compute global importances
-full_importances,_ = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation, scenario=scenario)    
+full_importances,_ = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)    
 save_element(full_importances, path_experiment_model_interpretation_scenario, filetype="npz")
 
 # plot global importances

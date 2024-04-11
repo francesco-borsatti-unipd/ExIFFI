@@ -26,9 +26,10 @@ import pickle
 import time
 import pandas as pd
 
-# cwd = os.getcwd()
-# cwd = os.path.dirname(cwd)
-# filename = cwd + "/utils_reboot/time_scaling_test_dei_new.pickle"
+cwd = os.getcwd()
+#import ipdb; ipdb.set_trace()
+cwd = os.path.dirname(cwd)
+filename = cwd + "/utils_reboot/time_scaling_ind.pickle"
 
 # dict_time = {1:{"fit":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}}, 
 #         "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
@@ -37,17 +38,17 @@ import pandas as pd
 #         "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
 #         "importances":{"EXIFFI+":{},"EXIFFI":{},"DIFFI":{},"RandomForest":{}}}}
 
-# if not os.path.exists(filename):
+if not os.path.exists(filename):
 
-#     dict_time = {"fit":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}}, 
-#             "predict":{"EIF+":{},"IF":{},"DIF":{},"EIF":{},"sklearn_IF":{}},
-#             "importances":{"EXIFFI+":{},"EXIFFI":{},"DIFFI":{},"RandomForest":{}}}
+    dict_time = {"fit":{"EIF+":{},"C_EIF+":{}}, 
+            "predict":{"EIF+":{},"C_EIF+":{}},
+            "importances":{"EXIFFI+":{},"C_EXIFFI+":{}}}
     
-#     with open(filename, "wb") as file:
-#         pickle.dump(dict_time, file)
+    with open(filename, "wb") as file:
+        pickle.dump(dict_time, file)
                
-# with open(filename, "rb") as file:
-#     dict_time = pickle.load(file)
+with open(filename, "rb") as file:
+    dict_time = pickle.load(file)
 
     
 
@@ -76,12 +77,51 @@ def compute_global_importances(I: Type[ExtendedIsolationForest],
         I.fit(dataset.X_train)        
     if interpretation=="DIFFI":
         fi,_=diffi_ib(I,dataset.X_test)
-    elif interpretation=="EXIFFI" or interpretation=='EXIFFI+':
+    elif interpretation=="EXIFFI" or interpretation=='EXIFFI+' or interpretation=='C_EXIFFI+':
         fi=I.global_importances(dataset.X_test,p)
     elif interpretation=="RandomForest":
         rf = RandomForestRegressor()
         rf.fit(dataset.X_test, I.predict(dataset.X_test))
         fi = rf.feature_importances_
+    return fi
+
+def compute_local_importances(I: Type[ExtendedIsolationForest],
+                        dataset: Type[Dataset],
+                        p = 0.1,
+                        interpretation="EXIFFI+",
+                        fit_model = True) -> np.array: 
+    
+    """
+    Compute the local feature importances for an interpration model on a specific dataset.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        interpretation (str): Name of the interpretation method to be used. Defaults to "EXIFFI+".
+        fit_model (bool): Whether to fit the model on the dataset. Defaults to True.
+
+    Returns:
+        The local feature importances vector of all the points in the input dataset
+
+    """
+
+    if fit_model:
+        I.fit(dataset.X_train)
+
+    y_pred=I._predict(dataset.X_test,p)
+    anomalies=dataset.X[np.where(y_pred==1)[0]]
+
+    print('Computing Local Importances...')
+    print('#'*50)
+
+    if interpretation=="DIFFI":
+        fi,_=local_diffi(I,anomalies)
+    elif interpretation=="EXIFFI" or interpretation=='EXIFFI+' or interpretation=='C_EXIFFI+':
+        fi=I.local_importances(anomalies)
+
+    print('Local Importances computed')
+
     return fi
 
 def fit_predict_experiment(I: Type[ExtendedIsolationForest],
@@ -114,7 +154,7 @@ def fit_predict_experiment(I: Type[ExtendedIsolationForest],
             dict_time["fit"][I.name].setdefault(dataset.name, []).append(fit_time) 
         
         start_time = time.time()
-        if model in ['EIF','EIF+']:
+        if model in ['EIF','EIF+','C_EIF+']:
             _=I._predict(dataset.X_test,p=dataset.perc_outliers)
             predict_time = time.time() - start_time
         elif model in ['sklearn_IF','DIF','AnomalyAutoencoder']:
@@ -160,8 +200,7 @@ def experiment_global_importances(I:Type[ExtendedIsolationForest],
         fi[i,:]=compute_global_importances(I,
                         dataset,
                         p = p,
-                        interpretation=interpretation,
-                        model = model)
+                        interpretation=interpretation)
         gfi_time = time.time() - start_time
         if i>3:
             imp_times.append(gfi_time)

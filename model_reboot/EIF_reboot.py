@@ -10,7 +10,6 @@ from numba.experimental import jitclass
 from joblib import Parallel, delayed
 
 
-from numba import njit
 from numba.typed import List
 import numpy as np
 from tqdm import tqdm
@@ -305,7 +304,6 @@ class ExtendedTree:
             dist = np.dot(np.ascontiguousarray(data), np.ascontiguousarray(self.normals[node_id]))
         
             if self.plus:
-                #self.intercepts[node_id] = np.random.normal(np.mean(dist),np.std(dist)*self.eta)
                 self.intercepts[node_id] = np.random.normal(np.mean(dist),np.std(dist)*self.eta)
             else:
                 self.intercepts[node_id] = np.random.uniform(np.min(dist),np.max(dist))
@@ -553,13 +551,13 @@ class ExtendedIsolationForest():
                           X:np.array) -> np.array:
 
         """
-        Compute the local importances of the features for the dataset.
+        Compute the local importances of the features for an input dataset (i.e. the set of predicted anomalies).
 
         Args:
             X: Input dataset
 
         Returns:
-           Local importances of the features for the dataset.
+           Local importances of the features for an input dataset (i.e. the set of predicted anomalies).
         """
         
         self.compute_ids(X)

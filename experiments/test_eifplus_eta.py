@@ -104,7 +104,7 @@ path_ablation = cwd+"/experiments/results/"+dataset.name+"/experiments/ablationE
 if not os.path.exists(path_ablation):
     os.makedirs(path_ablation)
 
-plot_path = cwd+"/experiments/results/"+dataset.name+"/plots_new/ablationEIF+"
+plot_path = cwd+"/experiments/results/"+dataset.name+"/plots/ablationEIF+"
 if not os.path.exists(plot_path):
     os.makedirs(plot_path)
 

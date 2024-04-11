@@ -1,4 +1,9 @@
 from __future__ import annotations
+import os 
+
+#import ipdb; ipdb.set_trace()
+# import sys;sys.path.append("..")
+# from utils_reboot.utils import open_element
 
 from typing import Type, Optional, List
 import numpy.typing as npt
@@ -16,8 +21,8 @@ from sklearn.preprocessing import StandardScaler
 import random
 import copy
 
-
 from sklearn.preprocessing import StandardScaler,MinMaxScaler,MaxAbsScaler,RobustScaler
+
 
 @dataclass
 class Dataset:
@@ -56,7 +61,8 @@ class Dataset:
         
         """
         self.load()
-        self.feature_names=Dataset_feature_names(self.name)
+        self.Dataset_feature_names()
+        #import ipdb; ipdb.set_trace()
         if self.feature_names is None:
             self.feature_names=np.arange(self.shape[1])
         #self.box_loc=Dataset_box_loc(self.name)
@@ -117,9 +123,6 @@ class Dataset:
                     self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
                 except:
                     raise Exception("The dataset name is not valid") from e
-
-
-
 
 
         # except FileNotFoundError:
@@ -345,34 +348,48 @@ class Dataset:
         self.X_train=copy.deepcopy(self.X)
         self.y_train=copy.deepcopy(self.y)
 
-def Dataset_feature_names(name:str) -> List[str]:
+    def Dataset_feature_names(self) -> List[str]:
 
-    """ 
-        Define the feture names for the datasets for which the feature names are available 
+        """ 
+            Define the feture names for the datasets for which the feature names are available 
 
-        Args:
-            name: Dataset name 
+            Args:
+                path: Path to the dataset file
+                name: Dataset name 
 
-        Returns:
-            A list of strings containing the feature names of the dataset.
-    """
+            Returns:
+                A list of strings containing the feature names of the dataset.
+        """
 
-    data_feature_names={
-       'pima': ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
-       'BMI', 'DiabetesPedigreeFunction', 'Age'],
-       'moodify': ['duration (ms)', 'danceability', 'energy', 'loudness',
-       'speechiness', 'acousticness', 'instrumentalness', 'liveness',
-       'valence', 'tempo', 'spec_rate'],
-       'diabetes': ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level'],
-       'glass_DIFFI': ['RI', 'Na', 'Mg', 'Al', 'Si', 'K', 'Ca', 'Ba', 'Fe'],
-       'wine': ['Alcohol', 'Malic acid', 'Ash', 'Alcalinity of ash', 'Magnesium','Phenols',
-                'Flavanoids', 'Nonflavanoid phenols', 'Proanthocyanins', 'Color intensity','Hue','OD280/OD315 of diluted wines','Proline']
-    }
+        piade_path=self.path+'piade_s2_feat_names.npz'
+        try:
+            data = np.load(piade_path)['element']
+        except:
+            data = np.load(piade_path,allow_pickle=True)['element']
 
-    if name in data_feature_names:    
-        return data_feature_names[name]
-    else:
-        return None 
+        piade_path_all_alarms=self.path+'piade_s2_all_alarms_feat_names.npz'
+        try:
+            data_all_alarms = np.load(piade_path_all_alarms)['element']
+        except:
+            data_all_alarms = np.load(piade_path_all_alarms,allow_pickle=True)['element']
+
+        data_feature_names={
+        'pima': ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
+        'BMI', 'DiabetesPedigreeFunction', 'Age'],
+        'moodify': ['duration (ms)', 'danceability', 'energy', 'loudness',
+        'speechiness', 'acousticness', 'instrumentalness', 'liveness',
+        'valence', 'tempo', 'spec_rate'],
+        'diabetes': ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level'],
+        'glass_DIFFI': ['RI', 'Na', 'Mg', 'Al', 'Si', 'K', 'Ca', 'Ba', 'Fe'],
+        'wine': ['Alcohol', 'Malic acid', 'Ash', 'Alcalinity of ash', 'Magnesium','Phenols',
+                    'Flavanoids', 'Nonflavanoid phenols', 'Proanthocyanins', 'Color intensity','Hue','OD280/OD315 of diluted wines','Proline'],
+        'piade_s2': list(data),
+        'piade_s2_all_alarms': list(data_all_alarms)
+        }
+
+        if self.name in data_feature_names:    
+            self.feature_names=data_feature_names[self.name]
+        else:
+            self.feature_names=None 
         
-
  

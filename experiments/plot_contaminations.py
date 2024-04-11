@@ -37,7 +37,7 @@ models = args.models
 dataset = Dataset(name=dataset_name, path=dataset_path)
 
 path_contamination = os.getcwd()+'/results/'+ dataset.name +'/experiments/contamination/'
-path_plots = os.getcwd()+'/results/'+ dataset.name +'/plots_new/contamination_plots'
+path_plots = os.getcwd()+'/results/'+ dataset.name +'/plots/contamination_plots'
 colors = ["tab:green","tab:blue","tab:orange","tab:red","tab:purple"]
 plt.style.use('default')
 plt.rcParams['axes.facecolor'] = '#F2F2F2'

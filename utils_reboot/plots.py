@@ -23,7 +23,7 @@ from model_reboot.interpretability_module import local_diffi
 
 
 def bar_plot(dataset: Type[Dataset], 
-            global_importances_file: str,
+            importances_file: str,
             filetype: str = "npz", 
             plot_path: str = os.getcwd(), 
             f: int = 6, 
@@ -31,13 +31,13 @@ def bar_plot(dataset: Type[Dataset],
             show_plot = True,
             model:str='EIF+',
             interpretation:str="EXIFFI+",
-            scenario:int=1) -> tuple[plt.figure, plt.axes, pd.DataFrame]:
+            scenario:int=None) -> tuple[plt.figure, plt.axes, pd.DataFrame]:
     """
     Compute the Global Importance Bar Plot starting from the Global Feature Importance vector.  
     
     Args:
         dataset (Type[Dataset]): Input dataset
-        global_importances_file (str): The path to the file containing the global importances.
+        importances_file (str): The path to the file containing the importances values.
         filetype (str, optional): The file type of the global importances file. Defaults to "npz".
         plot_path (str, optional): The path where the plot will be saved. Defaults to os.getcwd().
         f (int, optional): The number of ranks to be displayed in the plot. Defaults to 6. 
@@ -45,7 +45,7 @@ def bar_plot(dataset: Type[Dataset],
         show_plot (bool, optional): A boolean indicating whether the plot should be displayed. Defaults to True.
         model (str, optional): The AD model on which the importances should be computed. Defaults to 'EIF+'.
         interpretation (str, optional): The interpretation model used. Defaults to 'EXIFFI+'.
-        scenario (int, optional): The scenario number. Defaults to 1.
+        scenario (int, optional): The scenario number. Defaults to None.
 
     Returns:
        The figure, the axes and the bars dataframe.   
@@ -59,7 +59,9 @@ def bar_plot(dataset: Type[Dataset],
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
     
-    if (model=='EIF+' and interpretation=='EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
+    if scenario is None:
+        name_file = f"{current_time}_LFI_Bar_plot_{dataset.name}_{model}_{interpretation}"
+    elif (model=='EIF+' and interpretation=='EXIFFI+') or (model=='C_EIF+' and interpretation=='C_EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
         name_file = f"{current_time}_GFI_Bar_plot_{dataset.name}_{interpretation}_{scenario}"
     else:
         name_file = f"{current_time}_GFI_Bar_plot_{dataset.name}_{model}_{interpretation}_{scenario}"
@@ -67,7 +69,7 @@ def bar_plot(dataset: Type[Dataset],
     #Load the imps array from the pkl file contained in imps_path -> the imps_path is returned from the 
     #compute_local_importances or compute_global_importances functions so we have it for free 
     try:
-        importances = open_element(global_importances_file, filetype=filetype)
+        importances = open_element(importances_file, filetype=filetype)
     except:
         raise Exception("The file path is not valid")
 
@@ -80,6 +82,8 @@ def bar_plot(dataset: Type[Dataset],
 
     bars = [[(list(importances_matrix[:,j]).count(i)/len(importances_matrix))*100 for i in range(dim)] for j in range(dim)]
     bars = pd.DataFrame(bars)
+
+    #import ipdb; ipdb.set_trace()
 
     tick_names=[]
     for i in range(1,f+1):
@@ -131,25 +135,25 @@ def bar_plot(dataset: Type[Dataset],
     
 
 def score_plot(dataset: Type[Dataset], 
-            global_importances_file: str,
+            importances_file: str,
             plot_path: str = os.getcwd(), 
             save_image = True, 
             show_plot = True,
             model:str='EIF+',
             interpretation:str="EXIFFI",
-            scenario=1) -> tuple[plt.axes, plt.axes]:
+            scenario:int=None) -> tuple[plt.axes, plt.axes]:
     """
     Obtain the Global Feature Importance Score Plot starting from the Global Feature Importance vector.
 
     Args:
         dataset (Type[Dataset]): Input dataset
-        global_importances_file (str): The path to the file containing the global importances.
+        importances_file (str): The path to the file containing the importances values.
         plot_path (str, optional): The path where the plot will be saved. Defaults to os.getcwd().
         save_image (bool, optional): A boolean indicating whether the plot should be saved. Defaults to True.
         show_plot (bool, optional): A boolean indicating whether the plot should be displayed. Defaults to True.
         model (str, optional): The AD model on which the importances should be computed. Defaults to 'EIF+'.
         interpretation (str, optional): The interpretation model used. Defaults to 'EXIFFI'.
-        scenario (int, optional): The scenario number. Defaults to 1.
+        scenario (int, optional): The scenario number. Defaults to None.
     
     Returns:
         The two axes objects used to create the plot.
@@ -157,12 +161,14 @@ def score_plot(dataset: Type[Dataset],
     """
    # Compute the plt_data with the compute_plt_data function
     col_names = dataset.feature_names
-    plt_data = compute_plt_data(global_importances_file)
+    plt_data = compute_plt_data(importances_file)
 
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
 
-    if (model=='EIF+' and interpretation=='EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
+    if scenario is None:
+        name_file = f"{current_time}_LFI_Score_plot_{dataset.name}_{model}_{interpretation}"
+    elif (model=='EIF+' and interpretation=='EXIFFI+') or (model=='C_EIF+' and interpretation=='C_EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
         name_file = f"{current_time}_GFI_Score_plot_{dataset.name}_{interpretation}_{scenario}"
     else:
         name_file = f"{current_time}_GFI_Score_plot_{dataset.name}_{model}_{interpretation}_{scenario}"
@@ -323,8 +329,8 @@ def plot_feature_selection(
 
     if model=='EIF+' and interpretation=='EXIFFI+':
         namefile = "/" + current_time + "_" + precision.dataset + "_" + eval_model + '_' + "EXIFFI+" + "_feature_selection_" + str(scenario) + ".pdf"
-    elif model=='EIF' and interpretation=='EXIFFI':
-            namefile = "/" + current_time + "_" + precision.dataset + "_" + eval_model + '_' + 'EXIFFI' + "_feature_selection_" + str(scenario) + ".pdf"
+    elif model=='C_EIF+' and interpretation=='C_EXIFFI+':
+            namefile = "/" + current_time + "_" + precision.dataset + "_" + eval_model + '_' + 'C_EXIFFI+' + "_feature_selection_" + str(scenario) + ".pdf"
     else:
         namefile = "/" + current_time + "_" + precision.dataset + "_" + eval_model + '_' + model + "_" + interpretation + "_feature_selection_" + str(scenario) + ".pdf"
     

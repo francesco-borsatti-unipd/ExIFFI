@@ -223,7 +223,10 @@ def open_element(file_path:str,
         with open(file_path, 'rb') as fl:
             element = pickle.load(fl)
     elif filetype == "npz":
-        element = np.load(file_path)['element']
+        try:
+            element = np.load(file_path)['element']
+        except:
+            element = np.load(file_path,allow_pickle=True)['element']
     return element
 
 def fix_fs_file(dataset,model,interpretation,scenario):
