@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os 
+import json
 
 #import ipdb; ipdb.set_trace()
 # import sys;sys.path.append("..")
@@ -32,6 +33,7 @@ class Dataset:
     Attributes:
         name: The name of the dataset.
         path: The path to the dataset file.
+        json_path: Path to the json file used to assign feature names to the different datasets
         X: Data matrix of the dataset.
         X_train: Training set, initialized to None
         X_test: Test set, initialized to None
@@ -44,7 +46,8 @@ class Dataset:
         perc_outliers: The percentage of outliers in the dataset (i.e. the contamination factor)
     """
     name: str
-    path: str = "../data/"
+    path: str = "../datasets/data/"
+    json_path: str = "../datasets/data/"
     X: Optional[npt.NDArray] = field(default=None, init=False)
     y: Optional[npt.NDArray] = field(default=None, init=False)
     X_train: Optional[npt.NDArray] = field(default=None, init=False)
@@ -102,7 +105,7 @@ class Dataset:
 
         except FileNotFoundError:
             try:
-                datapath = self.path + self.name + ".csv"
+                datapath = self.path + self.name + ".csv.gz"
                 if self.name == "glass_DIFFI" or self.name == "piade_s2":
                     T = pd.read_csv(datapath)
                 else:
@@ -114,7 +117,7 @@ class Dataset:
                 self.y = T.loc[:,"Target"].to_numpy(float)
             except Exception as e:
                 try:
-                    datapath = self.path + self.name + ".csv"
+                    datapath = self.path + self.name + ".csv.gz"
                     T = pd.read_csv(datapath)
                     
                     if 'Unnamed: 0' in T.columns:
@@ -360,37 +363,8 @@ class Dataset:
             Returns:
                 A list of strings containing the feature names of the dataset.
         """
-
-        if 'piade' in self.name:
-            piade_path=self.path+'piade_s2_feat_names.npz'
-            try:
-                data = np.load(piade_path)['element']
-            except:
-                data = np.load(piade_path,allow_pickle=True)['element']
-
-            piade_path_all_alarms=self.path+'piade_s2_all_alarms_feat_names.npz'
-            try:
-                data_all_alarms = np.load(piade_path_all_alarms)['element']
-            except:
-                data_all_alarms = np.load(piade_path_all_alarms,allow_pickle=True)['element']
-        else:
-            data=[]
-            data_all_alarms=[]
-
-
-        data_feature_names={
-        'pima': ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
-        'BMI', 'DiabetesPedigreeFunction', 'Age'],
-        'moodify': ['duration (ms)', 'danceability', 'energy', 'loudness',
-        'speechiness', 'acousticness', 'instrumentalness', 'liveness',
-        'valence', 'tempo', 'spec_rate'],
-        'diabetes': ['age', 'bmi', 'HbA1c_level', 'blood_glucose_level'],
-        'glass_DIFFI': ['RI', 'Na', 'Mg', 'Al', 'Si', 'K', 'Ca', 'Ba', 'Fe'],
-        'wine': ['Alcohol', 'Malic acid', 'Ash', 'Alcalinity of ash', 'Magnesium','Phenols',
-                    'Flavanoids', 'Nonflavanoid phenols', 'Proanthocyanins', 'Color intensity','Hue','OD280/OD315 of diluted wines','Proline'],
-        'piade_s2': list(data),
-        'piade_s2_all_alarms': list(data_all_alarms)
-        }
+        with open(self.json_path+'data_feature_names.json','r') as f:
+            data_feature_names=json.load(f)
 
         if self.name in data_feature_names:    
             self.feature_names=data_feature_names[self.name]
