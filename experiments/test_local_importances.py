@@ -111,7 +111,7 @@ print('#'*50)
 os.chdir('../')
 cwd=os.getcwd()
 
-path_plots = cwd +"/experiments/results/"+dataset.name+"/plots_new/local_scoremaps"
+path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/local_scoremaps"
 if not os.path.exists(path_plots):
     os.makedirs(path_plots)
 
