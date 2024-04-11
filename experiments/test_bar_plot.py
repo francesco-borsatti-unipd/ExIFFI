@@ -28,8 +28,10 @@ local_imp_matrix_path=get_most_recent_file(local_imp_path)
 local_imp_matrix=open_element(local_imp_matrix_path, filetype='npz')
 
 datapath=os.path.join(os.path.dirname(cwd),'datasets','data','PIADE/')
-dataset=Dataset('piade_s2',path=datapath)
+dataset=Dataset('piade_s2_all_alarms',path=datapath)
 dataset.drop_duplicates()
+
+import ipdb; ipdb.set_trace()
 
 #plt_data=compute_plt_data(local_imp_matrix_path)
 
