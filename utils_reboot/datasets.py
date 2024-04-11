@@ -361,17 +361,22 @@ class Dataset:
                 A list of strings containing the feature names of the dataset.
         """
 
-        piade_path=self.path+'piade_s2_feat_names.npz'
-        try:
-            data = np.load(piade_path)['element']
-        except:
-            data = np.load(piade_path,allow_pickle=True)['element']
+        if 'piade' in self.name:
+            piade_path=self.path+'piade_s2_feat_names.npz'
+            try:
+                data = np.load(piade_path)['element']
+            except:
+                data = np.load(piade_path,allow_pickle=True)['element']
 
-        piade_path_all_alarms=self.path+'piade_s2_all_alarms_feat_names.npz'
-        try:
-            data_all_alarms = np.load(piade_path_all_alarms)['element']
-        except:
-            data_all_alarms = np.load(piade_path_all_alarms,allow_pickle=True)['element']
+            piade_path_all_alarms=self.path+'piade_s2_all_alarms_feat_names.npz'
+            try:
+                data_all_alarms = np.load(piade_path_all_alarms)['element']
+            except:
+                data_all_alarms = np.load(piade_path_all_alarms,allow_pickle=True)['element']
+        else:
+            data=[]
+            data_all_alarms=[]
+
 
         data_feature_names={
         'pima': ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
