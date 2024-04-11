@@ -29,7 +29,7 @@ dataset_name = args.dataset_name
 dataset_path = os.path.dirname(cwd)+args.dataset_path
 json_path = args.json_path
 
-dataset=Dataset(dataset_name,path=dataset_path,json_path=json_path)
+dataset=Dataset(dataset_name,path=dataset_path,feature_names_filepath=json_path)
 dataset.drop_duplicates()
 
 import ipdb; ipdb.set_trace()

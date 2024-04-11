@@ -47,7 +47,7 @@ class Dataset:
     """
     name: str
     path: str = "../datasets/data/"
-    json_path: str = "../datasets/data/"
+    feature_names_filepath: Optional[str] = field(default=None, init=False)
     X: Optional[npt.NDArray] = field(default=None, init=False)
     y: Optional[npt.NDArray] = field(default=None, init=False)
     X_train: Optional[npt.NDArray] = field(default=None, init=False)
@@ -64,8 +64,11 @@ class Dataset:
         
         """
         self.load()
-        self.Dataset_feature_names()
-        #import ipdb; ipdb.set_trace()
+
+        if self.feature_names_filepath is not None:
+            self.dataset_feature_names()
+            #import ipdb; ipdb.set_trace()
+
         if self.feature_names is None:
             self.feature_names=np.arange(self.shape[1])
         #self.box_loc=Dataset_box_loc(self.name)
@@ -351,7 +354,7 @@ class Dataset:
         self.X_train=copy.deepcopy(self.X)
         self.y_train=copy.deepcopy(self.y)
 
-    def Dataset_feature_names(self) -> List[str]:
+    def dataset_feature_names(self) -> List[str]:
 
         """ 
             Define the feture names for the datasets for which the feature names are available 
@@ -363,7 +366,7 @@ class Dataset:
             Returns:
                 A list of strings containing the feature names of the dataset.
         """
-        with open(self.json_path+'data_feature_names.json','r') as f:
+        with open(self.feature_names_filepath+'data_feature_names.json','r') as f:
             data_feature_names=json.load(f)
 
         if self.name in data_feature_names:    
