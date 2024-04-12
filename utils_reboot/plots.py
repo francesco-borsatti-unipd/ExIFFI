@@ -66,8 +66,6 @@ def bar_plot(dataset: Type[Dataset],
     else:
         name_file = f"{current_time}_GFI_Bar_plot_{dataset.name}_{model}_{interpretation}_{scenario}"
     
-    #Load the imps array from the pkl file contained in imps_path -> the imps_path is returned from the 
-    #compute_local_importances or compute_global_importances functions so we have it for free 
     try:
         importances = open_element(importances_file, filetype=filetype)
     except:
@@ -81,9 +79,9 @@ def bar_plot(dataset: Type[Dataset],
     dim=int(importances.shape[1])
 
     bars = [[(list(importances_matrix[:,j]).count(i)/len(importances_matrix))*100 for i in range(dim)] for j in range(dim)]
-    bars = pd.DataFrame(bars)
-
-    #import ipdb; ipdb.set_trace()
+    bars = pd.DataFrame(bars,columns=dataset.feature_names)
+    #bars = pd.DataFrame(bars)
+    #bars = pd.DataFrame(np.sort(bars.values, axis=1)[:, ::-1])
 
     tick_names=[]
     for i in range(1,f+1):
@@ -110,13 +108,36 @@ def bar_plot(dataset: Type[Dataset],
     elif importances.shape[1]>75:
         ncols=6
 
+    import ipdb; ipdb.set_trace()
+
     fig, ax = plt.subplots()
 
     for i in range(dim):
-        if col_names is not None: 
-            ax.bar(r[:f], bars.T.iloc[i, :f].values, bottom=bars.T.iloc[:i, :f].sum().values, color=color[i % number_colours], edgecolor='white', width=barWidth, label=col_names[i], hatch=patterns[i // number_colours])
+
+        colbar=[color[i % number_colours] if bars.T.iloc[i, j] > 5 else 'tab:grey' for j in range(f)]
+        labelbar=[bars.columns[i] if bars.T.iloc[i, j] > 5 else 'others' for j in range(f)]
+        #hatchbar=[patterns[i // number_colours] if bars.T.iloc[i, j] > 10 else None for j in range(f)]
+
+        if col_names is not None:
+            ax.bar(r[:f],
+                   bars.T.iloc[i, :f].values,
+                   bottom=bars.T.iloc[:i, :f].sum().values, 
+                   color=colbar,
+                   #edgecolor='white',
+                   width=barWidth,
+                   label=labelbar,
+                   #hatch=hatchbar)
+                    )
         else:
-            ax.bar(r[:f], bars.T.iloc[i, :f].values, bottom=bars.T.iloc[:i, :f].sum().values, color=color[i % number_colours], edgecolor='white', width=barWidth, label=str(i), hatch=patterns[i // number_colours])
+            ax.bar(r[:f],
+                   bars.T.iloc[i, :f].values,
+                   bottom=bars.T.iloc[:i, :f].sum().values,
+                   color=colbar,
+                   #edgecolor='white',
+                   width=barWidth,
+                   label=labelbar,
+                   #hatch=hatchbar)
+                    )
 
     ax.set_xlabel("Rank", fontsize=20)
     ax.set_xticks(range(f), tick_names[:f])

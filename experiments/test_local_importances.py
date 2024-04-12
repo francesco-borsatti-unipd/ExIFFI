@@ -52,7 +52,7 @@ model = args.model
 interpretation = args.interpretation
 
 # Load dataset
-dataset = Dataset(dataset_name, path = dataset_path)
+dataset = Dataset(dataset_name, path = dataset_path,json_path='../../datasets/data/')
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples
@@ -125,6 +125,6 @@ full_importances = compute_local_importances(I, dataset, p=contamination, interp
 save_element(full_importances, path_experiment_model_interpretation, filetype="npz")
 
 # plot global importances
-most_recent_file = get_most_recent_file(path_experiment_model_interpretation)
-bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation)
-score_plot(dataset, most_recent_file, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation)
+# most_recent_file = get_most_recent_file(path_experiment_model_interpretation)
+# bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation)
+# score_plot(dataset, most_recent_file, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation)

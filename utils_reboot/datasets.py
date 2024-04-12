@@ -106,7 +106,7 @@ class Dataset:
         except FileNotFoundError:
             try:
                 datapath = self.path + self.name + ".csv.gz"
-                if self.name == "glass_DIFFI" or self.name == "piade_s2":
+                if self.name == "glass_DIFFI" or "piade" in self.name:
                     T = pd.read_csv(datapath)
                 else:
                     T = pd.read_csv(datapath,index_col=0)
