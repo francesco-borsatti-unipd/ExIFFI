@@ -205,6 +205,54 @@ class ExtendedTree:
         self.path_to[new_node_id, parent_depth + 1] = new_node_id
 
         return new_node_id
+    
+    def create_split(self, X, node_id: int, subset_ids: np.ndarray, depth: int):
+
+        self.node_size[node_id] = subset_ids.shape[0]
+        if self.node_size[node_id] <= self.min_sample or depth >= self.max_depth:
+            # reached a leaf node
+            self.corrected_depth[node_id] = (
+                c_factor(self.node_size[node_id]) + depth + 1
+            )
+            return
+
+        self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
+
+        dist = np.dot(
+            np.ascontiguousarray(X[subset_ids]),
+            np.ascontiguousarray(self.normals[node_id]),
+        )
+
+        if self.plus:
+            self.intercepts[node_id] = np.random.normal(
+                np.mean(dist), np.std(dist) * self.eta
+            )
+        else:
+            self.intercepts[node_id] = np.random.uniform(np.min(dist), np.max(dist))
+
+        mask = dist <= self.intercepts[node_id]
+
+        # DEBUG: for exact match with the original implementation, don't compute the partial_importance but duplicate the code in the two lines
+        partial_importance = np.abs(self.normals[node_id]) * self.node_size[node_id]
+
+        left_child_id = self.create_new_node(node_id, depth)
+        # sum of the mask is the number of samples in the left child
+        self.cumul_importance[left_child_id] = self.cumul_importance[
+            node_id
+        ] + partial_importance / (len(subset_ids[mask]) + 1)
+        self.child_left[node_id] = left_child_id
+
+        right_child_id = self.create_new_node(node_id, depth)
+        self.cumul_importance[right_child_id] = self.cumul_importance[
+            node_id
+        ] + partial_importance / (len(subset_ids[~mask]) + 1)
+        self.child_right[node_id] = right_child_id
+
+        if self.node_count >= self.max_nodes:
+            raise ValueError("Max number of nodes reached")
+        
+        self.create_split(X, right_child_id, subset_ids[~mask], depth + 1)
+        self.create_split(X, left_child_id, subset_ids[mask], depth + 1)
 
     def extend_tree(self, node_id: int, X: npt.NDArray, depth: int) -> None:
         """
@@ -218,58 +266,9 @@ class ExtendedTree:
         Returns:
             The method extends the tree and does not return any value.
         """
-
         subset_ids = np.arange(len(X), dtype=np.uint32)
-        stack: list[tuple[int, np.ndarray, int]] = [(0, subset_ids, 0)]
+        self.create_split(X, node_id, subset_ids, depth)
 
-        while stack:
-            node_id, subset_ids, depth = stack.pop()
-
-            self.node_size[node_id] = subset_ids.shape[0]
-            if self.node_size[node_id] <= self.min_sample or depth >= self.max_depth:
-                # reached a leaf node
-                self.corrected_depth[node_id] = (
-                    c_factor(self.node_size[node_id]) + depth + 1
-                )
-                continue
-
-            self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
-
-            dist = np.dot(
-                np.ascontiguousarray(X[subset_ids]),
-                np.ascontiguousarray(self.normals[node_id]),
-            )
-
-            if self.plus:
-                self.intercepts[node_id] = np.random.normal(
-                    np.mean(dist), np.std(dist) * self.eta
-                )
-            else:
-                self.intercepts[node_id] = np.random.uniform(np.min(dist), np.max(dist))
-
-            mask = dist <= self.intercepts[node_id]
-
-            # DEBUG: for exact match with the original implementation, don't compute the partial_importance but duplicate the code in the two lines
-            partial_importance = np.abs(self.normals[node_id]) * self.node_size[node_id]
-
-            left_child_id = self.create_new_node(node_id, depth)
-            # sum of the mask is the number of samples in the left child
-            self.cumul_importance[left_child_id] = self.cumul_importance[
-                node_id
-            ] + partial_importance / (len(subset_ids[mask]) + 1)
-            self.child_left[node_id] = left_child_id
-
-            right_child_id = self.create_new_node(node_id, depth)
-            self.cumul_importance[right_child_id] = self.cumul_importance[
-                node_id
-            ] + partial_importance / (len(subset_ids[~mask]) + 1)
-            self.child_right[node_id] = right_child_id
-
-            stack.append((left_child_id, subset_ids[mask], depth + 1))
-            stack.append((right_child_id, subset_ids[~mask], depth + 1))
-
-            if self.node_count >= self.max_nodes:
-                raise ValueError("Max number of nodes reached")
 
     def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
