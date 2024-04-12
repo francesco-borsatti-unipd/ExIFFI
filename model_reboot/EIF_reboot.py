@@ -8,7 +8,7 @@ import numpy as np
 from numba import njit, prange, float64, int64, boolean
 from numba.experimental import jitclass
 from joblib import Parallel, delayed
-
+import pdb
 
 from numba import njit
 from numba.typed import List
@@ -61,12 +61,12 @@ def c_factor(n: int) -> float:
 
 @njit(cache=True)
 def get_leaf_ids(
-    X: np.array,
-    child_left: np.array,
-    child_right: np.array,
-    normals: np.array,
-    intercepts: np.array,
-) -> np.array:
+    X: np.ndarray,
+    child_left: np.ndarray,
+    child_right: np.ndarray,
+    normals: np.ndarray,
+    intercepts: np.ndarray,
+) -> np.ndarray:
     """
     Get the leaf node ids for each data point in the dataset.
 
@@ -94,78 +94,6 @@ def get_leaf_ids(
     return np.array(res)
 
 
-@njit(cache=True)
-def calculate_importances(
-    paths: np.ndarray,
-    directions: np.ndarray,
-    importances_left: np.ndarray,
-    importances_right: np.ndarray,
-    normals: np.ndarray,
-    d: int,
-) -> tuple[np.array, np.array]:
-    """
-    Calculate the importances of the features for the given paths and directions.
-
-    Args:
-        paths: Paths to the leaf nodes
-        directions: Directions to the leaf nodes
-        importances_left: Importances of the left child nodes
-        importances_right: Importances of the right child nodes
-        normals: Normal vectors of the splitting hyperplanes
-        d: Number of dimensions in the dataset
-
-    Returns:
-        Importances of the features for the given paths and directions and the normal vectors.
-    """
-
-    # Flatten the paths and directions for 1D boolean indexing
-    paths_flat = paths.flatten()
-    directions_flat = directions.flatten()
-
-    # Create masks for left and right directions
-    left_mask_flat = directions_flat == -1
-    right_mask_flat = directions_flat == 1
-
-    # Use masks to filter flattened paths; initialize with -1 (or suitable default)
-    left_paths_flat = np.full_like(paths_flat, -1)
-    right_paths_flat = np.full_like(paths_flat, -1)
-
-    # Apply the masks
-    left_paths_flat[left_mask_flat] = paths_flat[left_mask_flat]
-    right_paths_flat[right_mask_flat] = paths_flat[right_mask_flat]
-
-    # Since importances are mentioned to be arrays of arrays, let's assume we can index them directly with the flattened paths
-    # Note: This step might need adjustment based on the actual structure and intended calculations
-    importances_sum_left = np.zeros(
-        (paths.shape[0], d), dtype=np.float64
-    )  # Initialize to match number of rows in paths
-    importances_sum_right = np.zeros((paths.shape[0], d), dtype=np.float64)
-
-    normals_sum = np.zeros(
-        (paths.shape[0], d), dtype=np.float64
-    )  # Initialize to match number of rows in paths
-
-    importances_sum_left = (
-        importances_left[left_paths_flat]
-        .reshape(paths.shape[0], paths.shape[1], d)
-        .sum(axis=1)
-    )
-    importances_sum_right = (
-        importances_right[right_paths_flat]
-        .reshape(paths.shape[0], paths.shape[1], d)
-        .sum(axis=1)
-    )
-    normals_sum = (
-        np.abs(normals[paths_flat])
-        .reshape(paths.shape[0], paths.shape[1], d)
-        .sum(axis=1)
-    )
-
-    importances_sum = importances_sum_left + importances_sum_right
-
-    return importances_sum, normals_sum
-
-
 tree_spec = [
     ("plus", boolean),
     ("locked_dims", int64),
@@ -176,16 +104,13 @@ tree_spec = [
     ("node_count", int64),
     ("max_nodes", int64),
     ("path_to", int64[:, :]),
-    ("path_to_Right_Left", int64[:, :]),
     ("child_left", int64[:]),
     ("child_right", int64[:]),
     ("normals", float64[:, :]),
     ("intercepts", float64[:]),
     ("node_size", int64[:]),
-    ("depth", int64[:]),
     ("corrected_depth", float64[:]),
-    ("importances_right", float64[:, :]),
-    ("importances_left", float64[:, :]),
+    ("cumul_importance", float64[:, :]),
     ("eta", float64),
 ]
 
@@ -206,16 +131,13 @@ class ExtendedTree:
         node_count (int): Counter for the number of nodes in the tree
         max_nodes (int): Maximum number of nodes in the tree. Defaults to 10000
         path_to (np.array): Array to store the path to the leaf nodes
-        path_to_Right_Left (np.array): Array to store the path to the leaf nodes with directions
         child_left (np.array): Array to store the left child nodes
         child_right (np.array): Array to store the right child nodes
         normals (np.array): Array to store the normal vectors of the splitting hyperplanes
         intercepts (np.array): Array to store the intercept values of the splitting hyperplanes
         node_size (np.array): Array to store the size of the nodes
-        depth (np.array): Array to store the depth of the nodes
         corrected_depth (np.array): Array to store the corrected depth of the nodes
-        importances_right (np.array): Array to store the importances of the right child nodes
-        importances_left (np.array): Array to store the importances of the left child nodes
+        cumul_importance (np.array): Array to store the cumulative importances
         eta (float): Eta value for the model. Defaults to 1.5
 
     """
@@ -243,18 +165,15 @@ class ExtendedTree:
         self.eta = eta
 
         self.path_to = -np.ones((max_nodes, max_depth + 1), dtype=np.int64)
-        self.path_to_Right_Left = np.zeros((max_nodes, max_depth + 1), dtype=np.int64)
         self.child_left = np.zeros(max_nodes, dtype=np.int64)
         self.child_right = np.zeros(max_nodes, dtype=np.int64)
         self.normals = np.zeros((max_nodes, d), dtype=np.float64)
         self.intercepts = np.zeros(max_nodes, dtype=np.float64)
         self.node_size = np.zeros(max_nodes, dtype=np.int64)
-        self.depth = np.zeros(max_nodes, dtype=np.int64)
         self.corrected_depth = np.zeros(max_nodes, dtype=np.float64)
-        self.importances_right = np.zeros((max_nodes, d), dtype=np.float64)
-        self.importances_left = np.zeros((max_nodes, d), dtype=np.float64)
+        self.cumul_importance = np.zeros((max_nodes, d), dtype=np.float64)
 
-    def fit(self, X: np.array) -> None:
+    def fit(self, X: np.ndarray) -> None:
         """
         Fit the model to the dataset.
 
@@ -269,26 +188,22 @@ class ExtendedTree:
         self.extend_tree(node_id=0, X=X, depth=0)
         self.corrected_depth = self.corrected_depth / c_factor(len(X))
 
-    def create_new_node(self, parent_id: int, direction: int) -> int:
+    def create_new_node(self, parent_id: int, parent_depth: int) -> int:
         """
         Create a new node in the tree.
 
         Args:
             parent_id: Parent node id
-            direction: Direction to the new node
 
         Returns:
             New node id
 
         """
-
         new_node_id = self.node_count
         self.node_count += 1
         self.path_to[new_node_id] = self.path_to[parent_id]
-        self.path_to_Right_Left[new_node_id] = self.path_to_Right_Left[parent_id]
-        self.path_to[new_node_id, self.depth[parent_id] + 1] = new_node_id
-        self.path_to_Right_Left[new_node_id, self.depth[parent_id]] = direction
-        self.depth[new_node_id] = self.depth[parent_id] + 1
+        self.path_to[new_node_id, parent_depth + 1] = new_node_id
+
         return new_node_id
 
     def extend_tree(self, node_id: int, X: npt.NDArray, depth: int) -> None:
@@ -304,13 +219,13 @@ class ExtendedTree:
             The method extends the tree and does not return any value.
         """
 
-        # stack:list[tuple[int, np.ndarray, int]] = [(0, X, 0)]
-        stack = [(0, X, 0)]
+        subset_ids = np.arange(len(X), dtype=np.uint32)
+        stack: list[tuple[int, np.ndarray, int]] = [(0, subset_ids, 0)]
 
         while stack:
-            node_id, data, depth = stack.pop()
+            node_id, subset_ids, depth = stack.pop()
 
-            self.node_size[node_id] = len(data)
+            self.node_size[node_id] = subset_ids.shape[0]
             if self.node_size[node_id] <= self.min_sample or depth >= self.max_depth:
                 # reached a leaf node
                 self.corrected_depth[node_id] = (
@@ -321,7 +236,8 @@ class ExtendedTree:
             self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
 
             dist = np.dot(
-                np.ascontiguousarray(data), np.ascontiguousarray(self.normals[node_id])
+                np.ascontiguousarray(X[subset_ids]),
+                np.ascontiguousarray(self.normals[node_id]),
             )
 
             if self.plus:
@@ -330,31 +246,32 @@ class ExtendedTree:
                 )
             else:
                 self.intercepts[node_id] = np.random.uniform(np.min(dist), np.max(dist))
+
             mask = dist <= self.intercepts[node_id]
 
-            X_left = data[mask]
-            X_right = data[~mask]
-
-            # DEBUG: for exact match with the original implementation, do the following instead of computing the partial importance (slower)
-            # self.importances_left[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_left)+1)
-            # self.importances_right[node_id] = np.abs(self.normals[node_id])*self.node_size[node_id]/(len(X_right)+1)
+            # DEBUG: for exact match with the original implementation, don't compute the partial_importance but duplicate the code in the two lines
             partial_importance = np.abs(self.normals[node_id]) * self.node_size[node_id]
-            self.importances_left[node_id] = partial_importance / (len(X_left) + 1)
-            self.importances_right[node_id] = partial_importance / (len(X_right) + 1)
 
-            left_child = self.create_new_node(node_id, -1)
-            right_child = self.create_new_node(node_id, 1)
+            left_child_id = self.create_new_node(node_id, depth)
+            # sum of the mask is the number of samples in the left child
+            self.cumul_importance[left_child_id] = self.cumul_importance[
+                node_id
+            ] + partial_importance / (len(subset_ids[mask]) + 1)
+            self.child_left[node_id] = left_child_id
 
-            self.child_left[node_id] = left_child
-            self.child_right[node_id] = right_child
+            right_child_id = self.create_new_node(node_id, depth)
+            self.cumul_importance[right_child_id] = self.cumul_importance[
+                node_id
+            ] + partial_importance / (len(subset_ids[~mask]) + 1)
+            self.child_right[node_id] = right_child_id
 
-            stack.append((left_child, X_left, depth + 1))
-            stack.append((right_child, X_right, depth + 1))
+            stack.append((left_child_id, subset_ids[mask], depth + 1))
+            stack.append((right_child_id, subset_ids[~mask], depth + 1))
 
             if self.node_count >= self.max_nodes:
                 raise ValueError("Max number of nodes reached")
 
-    def leaf_ids(self, X: np.array) -> np.array:
+    def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
         Get the leaf node ids for each data point in the dataset.
 
@@ -370,7 +287,7 @@ class ExtendedTree:
             X, self.child_left, self.child_right, self.normals, self.intercepts
         )
 
-    def apply(self, X: np.array) -> None:
+    def apply(self, X: np.ndarray) -> np.ndarray:
         """
         Update the `path_to` attribute with the path to the leaf nodes for each data point in the dataset.
 
@@ -378,11 +295,11 @@ class ExtendedTree:
             X: Input dataset
 
         Returns:
-            The method updates `path_to` and does not return any value.
+            The method returns the path to the leaf nodes for each data point in the dataset.
         """
         return self.path_to[self.leaf_ids(X)]
 
-    def predict(self, ids: np.array) -> np.array:
+    def predict(self, ids: np.ndarray) -> np.ndarray:
         """
         Predict the anomaly score for each data point in the dataset.
 
@@ -394,7 +311,7 @@ class ExtendedTree:
         """
         return self.corrected_depth[ids]
 
-    def importances(self, ids: np.array) -> tuple[np.array, np.array]:
+    def importances(self, ids: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute the importances of the features for the given leaf node ids.
 
@@ -404,16 +321,14 @@ class ExtendedTree:
         Returns:
             Importances of the features for the given leaf node ids and the normal vectors.
         """
-        importances, normals = calculate_importances(
-            self.path_to[ids],
-            self.path_to_Right_Left[ids],  # directions
-            self.importances_left,
-            self.importances_right,
-            self.normals,
-            self.d,
+        paths = self.path_to[ids]
+        normals = (
+            np.abs(self.normals[paths.flatten()])
+            .reshape(paths.shape[0], paths.shape[1], self.d)
+            .sum(axis=1)
         )
 
-        return importances, normals
+        return self.cumul_importance[ids], normals
 
 
 class ExtendedIsolationForest:
@@ -454,7 +369,7 @@ class ExtendedIsolationForest:
     def avg_number_of_nodes(self):
         return np.mean([T.node_count for T in self.trees])
 
-    def fit(self, X: np.array, locked_dims: int = None) -> None:
+    def fit(self, X: np.ndarray, locked_dims: int | None = None) -> None:
         """
         Fit the model to the dataset.
 
@@ -487,7 +402,7 @@ class ExtendedIsolationForest:
         for T in self.trees:
             T.fit(X[np.random.randint(len(X), size=subsample_size)])
 
-    def compute_ids(self, X: np.array) -> None:
+    def compute_ids(self, X: np.ndarray) -> None:
         """
         Compute the leaf node ids for each data point in the dataset.
 
@@ -506,7 +421,7 @@ class ExtendedIsolationForest:
             self.X = X
             self.ids = np.array([tree.leaf_ids(X) for tree in self.trees])
 
-    def predict(self, X: np.array) -> np.array:
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predict the anomaly score for each data point in the dataset.
 
@@ -520,7 +435,7 @@ class ExtendedIsolationForest:
         predictions = [tree.predict(self.ids[i]) for i, tree in enumerate(self.trees)]
         return np.power(2, -np.mean(predictions, axis=0))
 
-    def _predict(self, X: np.array, p: float) -> np.array:
+    def _predict(self, X: np.ndarray, p: float) -> np.ndarray:
         """
         Predict the class of each data point (i.e. inlier or outlier) based on the anomaly score.
 
@@ -537,7 +452,9 @@ class ExtendedIsolationForest:
         )
         return y_hat
 
-    def _importances(self, X: np.array, ids: np.array) -> tuple[np.array, np.array]:
+    def _importances(
+        self, X: np.ndarray, ids: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute the importances of the features for the given leaf node ids.
 
@@ -557,7 +474,7 @@ class ExtendedIsolationForest:
             normals += normal
         return importances / self.n_estimators, normals / self.n_estimators
 
-    def global_importances(self, X: np.array, p: float = 0.1) -> np.array:
+    def global_importances(self, X: np.ndarray, p: float = 0.1) -> np.ndarray:
         """
         Compute the global importances of the features for the dataset.
 
@@ -582,7 +499,7 @@ class ExtendedIsolationForest:
             inliers_importances / inliers_normals
         )
 
-    def local_importances(self, X: np.array) -> np.array:
+    def local_importances(self, X: np.ndarray) -> np.ndarray:
         """
         Compute the local importances of the features for the dataset.
 
@@ -626,7 +543,7 @@ class IsolationForest(ExtendedIsolationForest):
         )
         self.name = "IF"
 
-    def fit(self, X: np.array) -> None:
+    def fit(self, X: np.ndarray) -> None:
         """
         Fit the model to the dataset.
 
