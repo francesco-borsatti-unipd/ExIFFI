@@ -66,7 +66,7 @@ class Dataset:
         self.load()
 
         if self.feature_names_filepath is not None:
-            self.dataset_feature_names()
+            self.dataset_feature_names_1()
             #import ipdb; ipdb.set_trace()
 
         if self.feature_names is None:
@@ -373,5 +373,33 @@ class Dataset:
             self.feature_names=data_feature_names[self.name]
         else:
             self.feature_names=None 
+
+
+    def dataset_feature_names_1(self) -> None:
+        """ 
+        Define the feature names for the datasets for which the feature names are available 
+
+        Returns:
+            A list of strings containing the feature names of the dataset.
+        """
+        if self.feature_names_filepath is not None:
+            filepath = os.path.join(self.feature_names_filepath, 'data_feature_names.json')
+            try:
+                with open(filepath, 'r') as f:
+                    data_feature_names = json.load(f)
+
+                if self.name in data_feature_names:    
+                    self.feature_names = data_feature_names[self.name]
+                else:
+                    self.feature_names = None
+            except FileNotFoundError:
+                print(f"File not found: {filepath}")
+                self.feature_names = None
+            except json.JSONDecodeError:
+                print(f"Error decoding JSON file: {filepath}")
+                self.feature_names = None
+        else:
+            self.feature_names = None
+
         
  
