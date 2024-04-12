@@ -47,7 +47,7 @@ class Dataset:
     """
     name: str
     path: str = "../datasets/data/"
-    feature_names_filepath: Optional[str] = field(default=None, init=False)
+    feature_names_filepath: Optional[str] = None
     X: Optional[npt.NDArray] = field(default=None, init=False)
     y: Optional[npt.NDArray] = field(default=None, init=False)
     X_train: Optional[npt.NDArray] = field(default=None, init=False)

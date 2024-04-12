@@ -44,11 +44,14 @@ if not os.path.exists(filename):
             "predict":{"EIF+":{},"C_EIF+":{}},
             "importances":{"EXIFFI+":{},"C_EXIFFI+":{}}}
     
-    with open(filename, "wb") as file:
-        pickle.dump(dict_time, file)
-               
-with open(filename, "rb") as file:
-    dict_time = pickle.load(file)
+    # if the folder exists, create the file
+    if os.path.exists(os.path.dirname(filename)):
+        with open(filename, "wb") as file:
+            pickle.dump(dict_time, file)
+
+if os.path.exists(filename):
+    with open(filename, "rb") as file:
+        dict_time = pickle.load(file)
 
     
 
@@ -89,7 +92,8 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
                         dataset: Type[Dataset],
                         p = 0.1,
                         interpretation="EXIFFI+",
-                        fit_model = True) -> np.array: 
+                        fit_model = True,
+                        return_pred_labels:bool=False) -> np.array: 
     
     """
     Compute the local feature importances for an interpration model on a specific dataset.
@@ -121,6 +125,9 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
         fi=I.local_importances(anomalies)
 
     print('Local Importances computed')
+
+    if return_pred_labels:
+        return fi, y_pred
 
     return fi
 
