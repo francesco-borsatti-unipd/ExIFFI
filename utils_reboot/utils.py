@@ -177,7 +177,7 @@ def save_element(element:Union[np.array,list,pd.DataFrame,Type[Precisions],Type[
 
     """
 
-    assert filetype in ["pickle", "npz"], "filetype must be either 'pickle' or 'npz'"
+    assert filetype in ["pickle", "npz","csv.gz"], "filetype must be either 'pickle' or 'npz'"
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
     filename = current_time + '_' + filename
@@ -187,6 +187,8 @@ def save_element(element:Union[np.array,list,pd.DataFrame,Type[Precisions],Type[
             pickle.dump(element, fl)
     elif filetype == "npz":
         np.savez(path, element=element)
+    elif filetype == "csv.gz":
+        element.to_csv(path+".csv.gz",index=False,compression='gzip')
         
 def get_most_recent_file(directory_path:str)->str:
 
@@ -218,7 +220,7 @@ def open_element(file_path:str,
         Element stored in the file
     """
 
-    assert filetype in ["pickle", "npz"], "filetype must be either 'pickle' or 'npz'"
+    assert filetype in ["pickle", "npz","csv.gz"], "filetype must be either 'pickle' or 'npz'"
     if filetype == "pickle":
         with open(file_path, 'rb') as fl:
             element = pickle.load(fl)
@@ -227,6 +229,8 @@ def open_element(file_path:str,
             element = np.load(file_path)['element']
         except:
             element = np.load(file_path,allow_pickle=True)['element']
+    elif filetype == "csv.gz":
+            element = pd.read_csv(file_path)
     return element
 
 def fix_fs_file(dataset,model,interpretation,scenario):
