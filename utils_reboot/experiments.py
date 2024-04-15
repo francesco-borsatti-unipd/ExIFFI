@@ -16,7 +16,7 @@ import copy
 from model_reboot.EIF_reboot import ExtendedIsolationForest
 from model_reboot.interpretability_module import *
 from utils_reboot.datasets import Dataset
-from utils_reboot.utils import save_element
+from utils_reboot.utils import save_element,open_element
 import sklearn
 from sklearn.ensemble import IsolationForest
 from sklearn.ensemble import RandomForestRegressor
@@ -126,10 +126,41 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
 
     print('Local Importances computed')
 
+    fi=pd.DataFrame(fi,columns=dataset.feature_names)
+
     if return_pred_labels:
         return fi, y_pred
 
     return fi
+
+def compute_bars(dataset: Type[Dataset],
+                 importances_file: str,
+                 filetype: str = 'npz',
+                 model: str = 'EIF+',
+                 interpretation: str = 'EXIFFI+'
+                 ) -> pd.DataFrame: 
+    
+    if  isinstance(dataset.feature_names, np.ndarray):
+        col_names = dataset.feature_names.astype(str)
+    elif isinstance(dataset.feature_names, list):
+        col_names = dataset.feature_names
+
+    try:
+        if filetype=='npz':
+            importances = open_element(importances_file, filetype='npz')
+        elif filetype=='csv.gz':
+            importances = open_element(importances_file, filetype='csv.gz').values
+    except:
+        raise Exception("The file path is not valid")
+    
+    importances_matrix = np.array([np.array(pd.Series(x).sort_values(ascending = False).index).T for x in importances])
+    dim=int(importances.shape[1])
+
+    bars = [[(list(importances_matrix[:,j]).count(i)/len(importances_matrix))*100 for i in range(dim)] for j in range(dim)]
+    bars = pd.DataFrame(bars,columns=col_names)
+
+    return bars 
+
 
 def fit_predict_experiment(I: Type[ExtendedIsolationForest],
                             dataset: Type[Dataset],

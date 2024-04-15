@@ -23,7 +23,7 @@ from model_reboot.interpretability_module import local_diffi
 
 
 def bar_plot(dataset: Type[Dataset], 
-            importances_file: str,
+            global_importances_file: str,
             filetype: str = "npz", 
             plot_path: str = os.getcwd(), 
             f: int = 6, 
@@ -31,13 +31,13 @@ def bar_plot(dataset: Type[Dataset],
             show_plot = True,
             model:str='EIF+',
             interpretation:str="EXIFFI+",
-            scenario:int=None) -> tuple[plt.figure, plt.axes, pd.DataFrame]:
+            scenario:int=1) -> tuple[plt.figure, plt.axes, pd.DataFrame]:
     """
     Compute the Global Importance Bar Plot starting from the Global Feature Importance vector.  
     
     Args:
         dataset (Type[Dataset]): Input dataset
-        importances_file (str): The path to the file containing the importances values.
+        global_importances_file (str): The path to the file containing the global importances.
         filetype (str, optional): The file type of the global importances file. Defaults to "npz".
         plot_path (str, optional): The path where the plot will be saved. Defaults to os.getcwd().
         f (int, optional): The number of ranks to be displayed in the plot. Defaults to 6. 
@@ -45,7 +45,7 @@ def bar_plot(dataset: Type[Dataset],
         show_plot (bool, optional): A boolean indicating whether the plot should be displayed. Defaults to True.
         model (str, optional): The AD model on which the importances should be computed. Defaults to 'EIF+'.
         interpretation (str, optional): The interpretation model used. Defaults to 'EXIFFI+'.
-        scenario (int, optional): The scenario number. Defaults to None.
+        scenario (int, optional): The scenario number. Defaults to 1.
 
     Returns:
        The figure, the axes and the bars dataframe.   
@@ -59,15 +59,15 @@ def bar_plot(dataset: Type[Dataset],
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
     
-    if scenario is None:
-        name_file = f"{current_time}_LFI_Bar_plot_{dataset.name}_{model}_{interpretation}"
-    elif (model=='EIF+' and interpretation=='EXIFFI+') or (model=='C_EIF+' and interpretation=='C_EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
+    if (model=='EIF+' and interpretation=='EXIFFI+') or (model=='EIF' and interpretation=='EXIFFI'):
         name_file = f"{current_time}_GFI_Bar_plot_{dataset.name}_{interpretation}_{scenario}"
     else:
         name_file = f"{current_time}_GFI_Bar_plot_{dataset.name}_{model}_{interpretation}_{scenario}"
     
+    #Load the imps array from the pkl file contained in imps_path -> the imps_path is returned from the 
+    #compute_local_importances or compute_global_importances functions so we have it for free 
     try:
-        importances = open_element(importances_file, filetype=filetype)
+        importances = open_element(global_importances_file, filetype=filetype)
     except:
         raise Exception("The file path is not valid")
 
@@ -79,9 +79,7 @@ def bar_plot(dataset: Type[Dataset],
     dim=int(importances.shape[1])
 
     bars = [[(list(importances_matrix[:,j]).count(i)/len(importances_matrix))*100 for i in range(dim)] for j in range(dim)]
-    bars = pd.DataFrame(bars,columns=dataset.feature_names)
-    #bars = pd.DataFrame(bars)
-    #bars = pd.DataFrame(np.sort(bars.values, axis=1)[:, ::-1])
+    bars = pd.DataFrame(bars)
 
     tick_names=[]
     for i in range(1,f+1):
@@ -108,36 +106,13 @@ def bar_plot(dataset: Type[Dataset],
     elif importances.shape[1]>75:
         ncols=6
 
-    import ipdb; ipdb.set_trace()
-
     fig, ax = plt.subplots()
 
     for i in range(dim):
-
-        colbar=[color[i % number_colours] if bars.T.iloc[i, j] > 5 else 'tab:grey' for j in range(f)]
-        labelbar=[bars.columns[i] if bars.T.iloc[i, j] > 5 else 'others' for j in range(f)]
-        #hatchbar=[patterns[i // number_colours] if bars.T.iloc[i, j] > 10 else None for j in range(f)]
-
-        if col_names is not None:
-            ax.bar(r[:f],
-                   bars.T.iloc[i, :f].values,
-                   bottom=bars.T.iloc[:i, :f].sum().values, 
-                   color=colbar,
-                   #edgecolor='white',
-                   width=barWidth,
-                   label=labelbar,
-                   #hatch=hatchbar)
-                    )
+        if col_names is not None: 
+            ax.bar(r[:f], bars.T.iloc[i, :f].values, bottom=bars.T.iloc[:i, :f].sum().values, color=color[i % number_colours], edgecolor='white', width=barWidth, label=col_names[i], hatch=patterns[i // number_colours])
         else:
-            ax.bar(r[:f],
-                   bars.T.iloc[i, :f].values,
-                   bottom=bars.T.iloc[:i, :f].sum().values,
-                   color=colbar,
-                   #edgecolor='white',
-                   width=barWidth,
-                   label=labelbar,
-                   #hatch=hatchbar)
-                    )
+            ax.bar(r[:f], bars.T.iloc[i, :f].values, bottom=bars.T.iloc[:i, :f].sum().values, color=color[i % number_colours], edgecolor='white', width=barWidth, label=str(i), hatch=patterns[i // number_colours])
 
     ax.set_xlabel("Rank", fontsize=20)
     ax.set_xticks(range(f), tick_names[:f])
