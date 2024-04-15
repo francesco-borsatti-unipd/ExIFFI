@@ -52,7 +52,7 @@ model = args.model
 interpretation = args.interpretation
 
 # Load dataset
-dataset = Dataset(dataset_name, path = dataset_path,json_path='../../datasets/data/')
+dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples
@@ -116,13 +116,22 @@ path_experiment_model = path_experiment + "/" + model
 if not os.path.exists(path_experiment_model):
     os.makedirs(path_experiment_model)
     
-path_experiment_model_interpretation = path_experiment_model + "/" + interpretation
-if not os.path.exists(path_experiment_model_interpretation):
-    os.makedirs(path_experiment_model_interpretation)
+path_experiment_model_interpretation_imp_mat = path_experiment_model + "/" + interpretation + "/imp_mat"
+if not os.path.exists(path_experiment_model_interpretation_imp_mat):
+    os.makedirs(path_experiment_model_interpretation_imp_mat)
+
+path_experiment_model_interpretation_bars = path_experiment_model + "/" + interpretation + "/bars"
+if not os.path.exists(path_experiment_model_interpretation_bars):
+    os.makedirs(path_experiment_model_interpretation_bars)
 
 #Compute global importances
 full_importances = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation)    
-save_element(full_importances, path_experiment_model_interpretation, filetype="npz")
+save_element(full_importances, path_experiment_model_interpretation_imp_mat, filetype="csv.gz")
+
+# Compute bars and save it in path_experiment_model_interpretation_bars
+imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat)
+bars = compute_bars(dataset=dataset,importances_file=imp_path,filetype="csv.gz",model=model,interpretation=interpretation)
+save_element(bars,path_experiment_model_interpretation_bars,filetype="csv.gz")
 
 # plot global importances
 # most_recent_file = get_most_recent_file(path_experiment_model_interpretation)
