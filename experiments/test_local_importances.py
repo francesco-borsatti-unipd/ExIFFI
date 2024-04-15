@@ -92,6 +92,8 @@ print('LFI Experiment')
 print('#'*50)
 print(f'Dataset: {dataset.name}')
 print(f'Model: {model}')
+print(f'Estimators: {n_estimators}')
+print(f'Contamination: {contamination}')
 print(f'Interpretation Model: {interpretation}')
 print('#'*50)
 
