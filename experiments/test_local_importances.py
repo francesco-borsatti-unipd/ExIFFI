@@ -27,6 +27,8 @@ parser.add_argument('--contamination', type=float, default=0.1, help='Global fea
 parser.add_argument('--pre_process',action='store_true', help='If set, preprocess the dataset')
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF, EIF+, C_EIF+]')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
+parser.add_argument('--scenario', type=int, default=1, help='scenario for training the model. Possible values: [1,2]')
+parser.add_argument("--get_labels", action='store_true',help="If set, function compute_local_importances also returns the predicted labels")
 
 # Parse the arguments
 args = parser.parse_args()
@@ -50,6 +52,8 @@ contamination = args.contamination
 pre_process = args.pre_process
 model = args.model
 interpretation = args.interpretation
+scenario = args.scenario
+get_labels = args.get_labels
 
 # Load dataset
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
@@ -58,6 +62,15 @@ dataset.drop_duplicates()
 # Downsample datasets with more than 7500 samples
 if dataset.shape[0] > 7500:
     dataset.downsample(max_samples=7500)
+
+# If a dataset has lables (all the datasets except piade), the contamination is set to dataset.perc_outliers
+if dataset.perc_outliers != 0:
+    contamination = dataset.perc_outliers
+
+# Split the dataset (scenario 2) for TEP dataset
+if scenario == 2:
+    dataset.split_dataset(train_size=1-dataset.perc_outliers,
+                          contamination=0)
 
 # Preprocess the dataset
 if pre_process:
@@ -122,18 +135,40 @@ path_experiment_model_interpretation_imp_mat = path_experiment_model + "/" + int
 if not os.path.exists(path_experiment_model_interpretation_imp_mat):
     os.makedirs(path_experiment_model_interpretation_imp_mat)
 
+path_experiment_model_interpretation_imp_mat_scenario = path_experiment_model_interpretation_imp_mat + "/scenario_"+str(scenario)
+if not os.path.exists(path_experiment_model_interpretation_imp_mat_scenario):
+    os.makedirs(path_experiment_model_interpretation_imp_mat_scenario)
+
 path_experiment_model_interpretation_bars = path_experiment_model + "/" + interpretation + "/bars"
 if not os.path.exists(path_experiment_model_interpretation_bars):
     os.makedirs(path_experiment_model_interpretation_bars)
 
-#Compute global importances
-full_importances = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation)    
-save_element(full_importances, path_experiment_model_interpretation_imp_mat, filetype="csv.gz")
+path_experiment_model_interpretation_bars_scenario = path_experiment_model_interpretation_bars + "/scenario_"+str(scenario)
+if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
+    os.makedirs(path_experiment_model_interpretation_bars_scenario)
 
-# Compute bars and save it in path_experiment_model_interpretation_bars
-imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat)
+path_experiment_model_interpretation_labels = path_experiment_model + "/" + interpretation + "/labels"
+if not os.path.exists(path_experiment_model_interpretation_labels):
+    os.makedirs(path_experiment_model_interpretation_labels)
+
+path_experiment_model_interpretation_labels_scenario = path_experiment_model_interpretation_labels + "/scenario_"+str(scenario)
+if not os.path.exists(path_experiment_model_interpretation_labels_scenario):
+    os.makedirs(path_experiment_model_interpretation_labels_scenario)
+
+#Compute local importances
+if get_labels:
+    full_importances,y_pred = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels)    
+    save_element(y_pred, path_experiment_model_interpretation_labels_scenario, filetype="npz")
+else:
+    full_importances = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels)
+
+save_element(full_importances, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
+
+
+# Compute bars and save it in path_experiment_model_interpretation_bars_scenario
+imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
 bars = compute_bars(dataset=dataset,importances_file=imp_path,filetype="csv.gz",model=model,interpretation=interpretation)
-save_element(bars,path_experiment_model_interpretation_bars,filetype="csv.gz")
+save_element(bars,path_experiment_model_interpretation_bars_scenario,filetype="csv.gz")
 
 # plot global importances
 # most_recent_file = get_most_recent_file(path_experiment_model_interpretation)
