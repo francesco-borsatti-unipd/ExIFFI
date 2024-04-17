@@ -33,7 +33,7 @@ class Dataset:
     Attributes:
         name: The name of the dataset.
         path: The path to the dataset file.
-        json_path: Path to the json file used to assign feature names to the different datasets
+        feature_names_filepath: Path to the directory of the json file used to assign feature names to the different datasets
         X: Data matrix of the dataset.
         X_train: Training set, initialized to None
         X_test: Test set, initialized to None
@@ -109,13 +109,12 @@ class Dataset:
         except FileNotFoundError:
             try:
                 datapath = self.path + self.name + ".csv.gz"
-                if self.name == "glass_DIFFI" or "piade" in self.name:
-                    T = pd.read_csv(datapath)
-                else:
+                T = pd.read_csv(datapath)
+                if 'Unnamed: 0' in T.columns:
                     T = pd.read_csv(datapath,index_col=0)
                 #import ipdb; ipdb.set_trace()
-                if 'Unnamed: 0' in T.columns:
-                    T = T.drop(columns=['Unnamed: 0'])
+                # if 'Unnamed: 0' in T.columns:
+                #     T = T.drop(columns=['Unnamed: 0'])
                 self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
                 self.y = T.loc[:,"Target"].to_numpy(float)
             except Exception as e:
@@ -171,7 +170,7 @@ class Dataset:
         
     def downsample(self, max_samples: int = 2500) -> None:
         """
-        Downsample the dataset to a maximum number of samples.
+        Downsample the dataset to a maximum number of samples keeping the proportion of outliers.
 
         Args:
             max_samples: The maximum number of samples to keep in the dataset.

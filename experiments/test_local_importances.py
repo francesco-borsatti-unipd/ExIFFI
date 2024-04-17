@@ -108,6 +108,7 @@ print(f'Model: {model}')
 print(f'Estimators: {n_estimators}')
 print(f'Contamination: {contamination}')
 print(f'Interpretation Model: {interpretation}')
+print(f'Scenario: {scenario}')
 print('#'*50)
 
 path = cwd +"/experiments/results/"+dataset.name

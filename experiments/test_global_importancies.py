@@ -29,6 +29,7 @@ parser.add_argument('--pre_process',action='store_true', help='If set, preproces
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF+, C_EIF+]')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI+, C_EXIFFI+]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
+
 # Parse the arguments
 args = parser.parse_args()
 
@@ -55,13 +56,12 @@ model = args.model
 interpretation = args.interpretation
 scenario = args.scenario
 
-dataset = Dataset(dataset_name, path = dataset_path)
+dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples
 if dataset.shape[0] > 7500:
     dataset.downsample(max_samples=7500)
-
 
 if scenario==2:
     dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
@@ -100,6 +100,8 @@ print('GFI Experiment')
 print('#'*50)
 print(f'Dataset: {dataset.name}')
 print(f'Model: {model}')
+print(f'Estimators: {n_estimators}')
+print(f'Contamination: {contamination}')
 print(f'Interpretation Model: {interpretation}')
 print(f'Scenario: {scenario}')
 print('#'*50)
@@ -125,19 +127,34 @@ path_experiment_model = path_experiment + "/" + model
 if not os.path.exists(path_experiment_model):
     os.makedirs(path_experiment_model)
     
-path_experiment_model_interpretation = path_experiment_model + "/" + interpretation
-if not os.path.exists(path_experiment_model_interpretation):
-    os.makedirs(path_experiment_model_interpretation)
-path_experiment_model_interpretation_scenario = path_experiment_model_interpretation + "/scenario_"+str(scenario)
-if not os.path.exists(path_experiment_model_interpretation_scenario):
-    os.makedirs(path_experiment_model_interpretation_scenario)
+path_experiment_model_interpretation_imp_mat = path_experiment_model + "/" + interpretation + "/imp_mat"
+if not os.path.exists(path_experiment_model_interpretation_imp_mat):
+    os.makedirs(path_experiment_model_interpretation_imp_mat)
+
+path_experiment_model_interpretation_imp_mat_scenario = path_experiment_model_interpretation_imp_mat + "/scenario_"+str(scenario)
+if not os.path.exists(path_experiment_model_interpretation_imp_mat_scenario):
+    os.makedirs(path_experiment_model_interpretation_imp_mat_scenario)
+
+path_experiment_model_interpretation_bars = path_experiment_model + "/" + interpretation + "/bars"
+if not os.path.exists(path_experiment_model_interpretation_bars):
+    os.makedirs(path_experiment_model_interpretation_bars)
+
+path_experiment_model_interpretation_bars_scenario = path_experiment_model_interpretation_bars + "/scenario_"+str(scenario)
+if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
+    os.makedirs(path_experiment_model_interpretation_bars_scenario)
     
 #Compute global importances
-full_importances,_ = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)    
-save_element(full_importances, path_experiment_model_interpretation_scenario, filetype="npz")
+#full_importances,_ = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)    
+full_importances = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)
+save_element(full_importances, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
+
+# Compute bars and save it in path_experiment_model_interpretation_bars_scenario
+imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
+bars = compute_bars(dataset=dataset,importances_file=imp_path,filetype="csv.gz",model=model,interpretation=interpretation)
+save_element(bars,path_experiment_model_interpretation_bars_scenario,filetype="csv.gz")
 
 # plot global importances
-most_recent_file = get_most_recent_file(path_experiment_model_interpretation_scenario)
-bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
-score_plot(dataset, most_recent_file, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+# most_recent_file = get_most_recent_file(path_experiment_model_interpretation_scenario)
+# bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+# score_plot(dataset, most_recent_file, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
 
