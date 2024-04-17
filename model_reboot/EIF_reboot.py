@@ -8,7 +8,7 @@ import numpy as np, numpy.typing as npt
 from numba import njit, float64, int64, boolean
 from numba.experimental import jitclass
 from numba.typed import List
-import pdb
+import ipdb
 
 # get the current script dirpath
 p = os.path.dirname(os.path.abspath(__file__))
@@ -115,7 +115,7 @@ tree_spec = [
 ]
 
 
-nodes:List[Node] = []
+nodes: List[Node] = []
 
 
 @jitclass(tree_spec)
@@ -209,52 +209,6 @@ class ExtendedTree:
 
         return new_node_id
 
-    def create_split(self, X, node_id: int, subset_ids: np.ndarray, depth: int, cumul_importance:np.ndarray, cumul_normals:np.ndarray) -> None:
-
-        node_size = subset_ids.shape[0]
-
-        if node_size <= self.min_sample or depth >= self.max_depth:
-            # reached a leaf node
-            self.corrected_depth[node_id] = c_factor(node_size) + depth + 1
-            self.cumul_importance[node_id] = cumul_importance
-            self.cumul_normals[node_id] = cumul_normals
-            return
-
-        self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
-
-        dist = np.dot(
-            np.ascontiguousarray(X[subset_ids]),
-            np.ascontiguousarray(self.normals[node_id]),
-        )
-
-        if self.plus:
-            self.intercepts[node_id] = np.random.normal(
-                np.mean(dist), np.std(dist) * self.eta
-            )
-        else:
-            self.intercepts[node_id] = np.random.uniform(np.min(dist), np.max(dist))
-
-        mask = dist <= self.intercepts[node_id]
-
-        partial_importance = np.abs(self.normals[node_id]) * node_size
-
-        left_child_id = self.create_new_node(node_id, depth)
-        cumul_importance_left = cumul_importance + partial_importance / (len(subset_ids[mask]) + 1)
-        self.child_left[node_id] = left_child_id
-
-        right_child_id = self.create_new_node(node_id, depth)
-        cumul_importance_right = cumul_importance + partial_importance / (len(subset_ids[~mask]) + 1)
-        self.child_right[node_id] = right_child_id
-
-        # cumulate the normals
-        cumul_normals += np.abs(self.normals[node_id])
-
-        if self.node_count >= self.max_nodes:
-            raise ValueError("Max number of nodes reached")
-
-        self.create_split(X, right_child_id, subset_ids[~mask], depth + 1, cumul_importance_right, cumul_normals)
-        self.create_split(X, left_child_id, subset_ids[mask], depth + 1, cumul_importance_left, cumul_normals)
-
     def extend_tree(self, node_id: int, X: npt.NDArray, depth: int) -> None:
         """
         Extend the tree to the given node.
@@ -267,8 +221,79 @@ class ExtendedTree:
         Returns:
             The method extends the tree and does not return any value.
         """
+
+
+        if self.plus:
+            rand_intercept = lambda dist: np.random.normal(
+                np.mean(dist), np.std(dist) * self.eta
+            )
+        else:
+            rand_intercept = lambda dist: np.random.uniform(np.min(dist), np.max(dist))
+
+
+        def create_split(
+            node_id: int,
+            subset_ids: np.ndarray,
+            depth: int,
+            cumul_importance: np.ndarray,
+            cumul_normals: np.ndarray,
+        ) -> None:
+
+            node_size = subset_ids.shape[0]
+
+            if node_size <= self.min_sample or depth >= self.max_depth:
+                # reached a leaf node
+                self.corrected_depth[node_id] = c_factor(node_size) + depth + 1
+                self.cumul_normals[node_id] = cumul_normals
+                self.cumul_importance[node_id] = cumul_importance
+                return
+
+            self.normals[node_id] = make_rand_vector(self.d - self.locked_dims, self.d)
+
+            dist = np.dot(
+                np.ascontiguousarray(X[subset_ids]),
+                np.ascontiguousarray(self.normals[node_id]),
+            )
+
+            self.intercepts[node_id] = rand_intercept(dist)
+            mask = dist <= self.intercepts[node_id]
+
+            self.child_left[node_id] = self.create_new_node(node_id, depth)
+            self.child_right[node_id] = self.create_new_node(node_id, depth)
+
+            partial_importance = np.abs(self.normals[node_id])
+            cumul_normals += partial_importance
+            partial_importance *= node_size
+
+            l_cumul_importance = cumul_importance + partial_importance / (
+                len(subset_ids[mask]) + 1
+            )
+            r_cumul_importance = cumul_importance + partial_importance / (
+                len(subset_ids[~mask]) + 1
+            )
+
+            if self.node_count >= self.max_nodes:
+                raise ValueError("Max number of nodes reached")
+
+            create_split(
+                self.child_right[node_id],
+                subset_ids[~mask],
+                depth + 1,
+                r_cumul_importance,
+                cumul_normals.copy(),
+            )
+            create_split(
+                self.child_left[node_id],
+                subset_ids[mask],
+                depth + 1,
+                l_cumul_importance,
+                cumul_normals,
+            )
+
         subset_ids = np.arange(len(X), dtype=np.uint32)
-        self.create_split(X, node_id, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1]))
+        create_split(
+            node_id, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1])
+        )
 
     def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
@@ -550,8 +575,8 @@ class IsolationForest(ExtendedIsolationForest):
         return super().fit(X, locked_dims=X.shape[1] - 1)
 
     def decision_function_single_tree(
-        self, tree_idx: int, X: np.array, p: float = 0.1
-    ) -> tuple[np.array, np.array]:
+        self, tree_idx: int, X: np.ndarray, p: float = 0.1
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Predict the anomaly score for each data point in the dataset using a single tree.
 
