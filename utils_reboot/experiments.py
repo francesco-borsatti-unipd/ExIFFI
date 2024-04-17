@@ -114,7 +114,7 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
         I.fit(dataset.X_train)
 
     y_pred=I._predict(dataset.X_test,p)
-    anomalies=dataset.X[np.where(y_pred==1)[0]]
+    anomalies=dataset.X_test[np.where(y_pred==1)[0]]
 
     print('Computing Local Importances...')
     print('#'*50)
@@ -125,6 +125,8 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
         fi=I.local_importances(anomalies)
 
     print('Local Importances computed')
+
+    #import ipdb; ipdb.set_trace()
 
     fi=pd.DataFrame(fi,columns=dataset.feature_names)
 
@@ -232,22 +234,26 @@ def experiment_global_importances(I:Type[ExtendedIsolationForest],
     """
 
     fi=np.zeros(shape=(n_runs,dataset.X.shape[1]))
-    imp_times=[]
+    #imp_times=[]
     for i in tqdm(range(n_runs)):
-        start_time = time.time()
+        #start_time = time.time()
         fi[i,:]=compute_global_importances(I,
                         dataset,
                         p = p,
                         interpretation=interpretation)
-        gfi_time = time.time() - start_time
-        if i>3:
-            imp_times.append(gfi_time)
-            dict_time["importances"][interpretation].setdefault(dataset.name, []).append(gfi_time)
+        #gfi_time = time.time() - start_time
+        # if i>3:
+        #     imp_times.append(gfi_time)
+        #     dict_time["importances"][interpretation].setdefault(dataset.name, []).append(gfi_time)
             #print(f'Added time {str(gfi_time)} to time dict')
     
-    with open(filename, "wb") as file:
-        pickle.dump(dict_time, file)
-    return fi,np.mean(imp_times)
+    # with open(filename, "wb") as file:
+    #     pickle.dump(dict_time, file)
+    #return fi,np.mean(imp_times)
+
+    fi=pd.DataFrame(fi,columns=dataset.feature_names)
+
+    return fi 
 
 def compute_plt_data(imp_path:str) -> dict:
 
