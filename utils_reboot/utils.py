@@ -1,9 +1,10 @@
 import time
-from typing import Type,Union
+from typing import Type,Union,Optional
 import pickle
 import numpy as np
 import pandas as pd
 import os
+import json
 from collections import namedtuple
 from model_reboot.EIF_reboot import ExtendedIsolationForest
 from utils_reboot.datasets import Dataset
@@ -156,6 +157,33 @@ class sklearn_IsolationForest(IsolationForest):
 #         An_score = self.predict(X)
 #         y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
 #         return y_hat
+    
+def update_feature_names(dataset:pd.DataFrame,
+                        dataset_name:str,
+                        feature_names_filepath:Optional[str]='../datasets/data/data_feature_names.json',
+                        feature_names:Optional[list[str]]=None) -> None:
+    
+    """
+    Function to update the feature names of a new dataset in the `data_feature_names.json` file.
+
+    Args:
+        dataset: Input dataset
+        dataset_name: Dataset name
+        feature_names_filepath: Path to the json file to update
+        feature_names: List of string containing the feature names
+
+    Returns: 
+        The function updates the feature names json file and does not return any value 
+    """
+    
+    with open(feature_names_filepath) as f:
+        data_feature_names=json.load(f)
+
+    data_feature_names[dataset_name] = feature_names
+
+    with open(feature_names_filepath, 'w') as f:
+        json.dump(data_feature_names, f)
+
     
 
 def save_element(element:Union[np.array,list,pd.DataFrame,Type[Precisions],Type[NewPrecisions],Type[Precisions_random]],
