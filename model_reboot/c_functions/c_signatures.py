@@ -26,7 +26,7 @@ class Node(c.Structure):
         ("left_child_id", c.c_uint),
         ("right_child_id", c.c_uint),
         ("leaf_data", c.POINTER(LeafData)),
-        ("node_id", c.c_uint),
+        ("id", c.c_uint),
     ]
 
 
