@@ -29,7 +29,7 @@ parser.add_argument('--pre_process',action='store_true', help='If set, preproces
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF, EIF+, C_EIF+]')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
 parser.add_argument('--scenario', type=int, default=1, help='scenario for training the model. Possible values: [1,2]')
-parser.add_argument("--get_labels", action='store_true',help="If set, function compute_local_importances also returns the predicted labels")
+parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
 parser.add_argument('--n_runs', type=int, default=10, help='Number of runs of Local Feature importance computation')
 
 # Parse the arguments
@@ -55,7 +55,7 @@ pre_process = args.pre_process
 model = args.model
 interpretation = args.interpretation
 scenario = args.scenario
-get_labels = args.get_labels
+eta = args.eta
 n_runs = args.n_runs 
 
 # Load dataset
@@ -93,12 +93,12 @@ if model == "IF":
     elif interpretation == "DIFFI" or interpretation == "RandomForest":
         I = sklearn_IsolationForest(n_estimators=n_estimators, max_samples=max_samples)
 elif model == "EIF+":
-    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
 elif model == "EIF":
-    I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+    I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
 # For the moment EIF+ and C_EIF+ are the same model, modify here when we have the C implementation of ExtendedIsolationForest
 elif model == "C_EIF+":
-    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
 
 os.chdir('../')
 cwd=os.getcwd()
@@ -121,9 +121,9 @@ if not os.path.exists(path):
 path_experiments = cwd +"/experiments/results/"+dataset.name+"/experiments"
 if not os.path.exists(path_experiments):
     os.makedirs(path_experiments)
-path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/lfi_imp_plots"
-if not os.path.exists(path_plots):
-    os.makedirs(path_plots)
+# path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/lfi_imp_plots"
+# if not os.path.exists(path_plots):
+#     os.makedirs(path_plots)
 
 #----------------- LOCAL IMPORTANCES -----------------#
 # initialize local_importances paths
@@ -135,8 +135,20 @@ if not os.path.exists(path_experiment):
 path_experiment_model = path_experiment + "/" + model
 if not os.path.exists(path_experiment_model):
     os.makedirs(path_experiment_model)
+
+if pre_process:
+    path_experiment_model_interpretation_trees = path_experiment_model + "/" + interpretation + f"/trees_{n_estimators}_pre_process"
+else:
+    path_experiment_model_interpretation_trees = path_experiment_model + "/" + interpretation + f"/trees_{n_estimators}"
     
-path_experiment_model_interpretation_imp_mat = path_experiment_model + "/" + interpretation + "/imp_mat"
+if not os.path.exists(path_experiment_model_interpretation_trees):
+    os.makedirs(path_experiment_model_interpretation_trees)
+
+path_experiment_model_interpretation_cont = path_experiment_model_interpretation_trees + f"/cont_{int(contamination*100)}"
+if not os.path.exists(path_experiment_model_interpretation_cont):
+    os.makedirs(path_experiment_model_interpretation_cont)
+    
+path_experiment_model_interpretation_imp_mat = path_experiment_model_interpretation_cont + "/imp_mat"
 if not os.path.exists(path_experiment_model_interpretation_imp_mat):
     os.makedirs(path_experiment_model_interpretation_imp_mat)
 
@@ -144,7 +156,7 @@ path_experiment_model_interpretation_imp_mat_scenario = path_experiment_model_in
 if not os.path.exists(path_experiment_model_interpretation_imp_mat_scenario):
     os.makedirs(path_experiment_model_interpretation_imp_mat_scenario)
 
-path_experiment_model_interpretation_bars = path_experiment_model + "/" + interpretation + "/bars"
+path_experiment_model_interpretation_bars = path_experiment_model_interpretation_cont + "/bars"
 if not os.path.exists(path_experiment_model_interpretation_bars):
     os.makedirs(path_experiment_model_interpretation_bars)
 
@@ -152,7 +164,7 @@ path_experiment_model_interpretation_bars_scenario = path_experiment_model_inter
 if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
     os.makedirs(path_experiment_model_interpretation_bars_scenario)
 
-path_experiment_model_interpretation_labels = path_experiment_model + "/" + interpretation + "/labels"
+path_experiment_model_interpretation_labels = path_experiment_model_interpretation_cont + "/labels"
 if not os.path.exists(path_experiment_model_interpretation_labels):
     os.makedirs(path_experiment_model_interpretation_labels)
 
@@ -161,12 +173,9 @@ if not os.path.exists(path_experiment_model_interpretation_labels_scenario):
     os.makedirs(path_experiment_model_interpretation_labels_scenario)
 
 #Compute local importances
-if get_labels:
-    full_importances,y_pred = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels, n_runs=n_runs)    
-    save_element(y_pred, path_experiment_model_interpretation_labels_scenario, filetype="npz")
-else:
-    full_importances = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels, n_runs=n_runs)
 
+full_importances,labels = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, n_runs=n_runs)    
+save_element(labels, path_experiment_model_interpretation_labels_scenario, filetype="npz")
 save_element(full_importances, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
 
 
