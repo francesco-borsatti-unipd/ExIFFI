@@ -184,7 +184,35 @@ def update_feature_names(dataset:pd.DataFrame,
     with open(feature_names_filepath, 'w') as f:
         json.dump(data_feature_names, f)
 
+def get_feature_indexes(dataset:Type[Dataset],
+                        f1:str,
+                        f2:str) -> tuple[int,int]:
     
+    """
+    Function to get the indexes of two features in the dataset.
+
+    Args:
+        dataset: Dataset
+        f1: Name of the first feature
+        f2: Name of the second feature
+    
+    Returns:
+        Indexes of the two features in the dataset
+    """
+
+    feature_names=dataset.feature_names
+
+    try:
+        idx1=feature_names.index(f1)
+    except:
+        print('Feature name not valid')
+    try: 
+        idx2=feature_names.index(f2)
+    except:
+        print('Feature name not valid')
+
+    return idx1,idx2
+
 
 def save_element(element:Union[np.array,list,pd.DataFrame,Type[Precisions],Type[NewPrecisions],Type[Precisions_random]],
                  directory_path:str,
