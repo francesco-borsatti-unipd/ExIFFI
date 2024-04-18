@@ -1,5 +1,6 @@
 import sys
 import os
+os.environ["NUMBA_DISABLE_JIT"] = "0"  # "1" to disable, "0" to enable
 cwd = os.getcwd()
 sys.path.append("..")
 from collections import namedtuple
@@ -29,6 +30,7 @@ parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
 parser.add_argument('--scenario', type=int, default=1, help='scenario for training the model. Possible values: [1,2]')
 parser.add_argument("--get_labels", action='store_true',help="If set, function compute_local_importances also returns the predicted labels")
+parser.add_argument('--n_runs', type=int, default=10, help='Number of runs of Local Feature importance computation')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -54,6 +56,7 @@ model = args.model
 interpretation = args.interpretation
 scenario = args.scenario
 get_labels = args.get_labels
+n_runs = args.n_runs 
 
 # Load dataset
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
@@ -109,6 +112,7 @@ print(f'Estimators: {n_estimators}')
 print(f'Contamination: {contamination}')
 print(f'Interpretation Model: {interpretation}')
 print(f'Scenario: {scenario}')
+print(f'Number of runs: {n_runs}')
 print('#'*50)
 
 path = cwd +"/experiments/results/"+dataset.name
@@ -158,10 +162,10 @@ if not os.path.exists(path_experiment_model_interpretation_labels_scenario):
 
 #Compute local importances
 if get_labels:
-    full_importances,y_pred = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels)    
+    full_importances,y_pred = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels, n_runs=n_runs)    
     save_element(y_pred, path_experiment_model_interpretation_labels_scenario, filetype="npz")
 else:
-    full_importances = compute_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels)
+    full_importances = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, return_pred_labels=get_labels, n_runs=n_runs)
 
 save_element(full_importances, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
 
