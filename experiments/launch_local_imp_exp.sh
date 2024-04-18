@@ -8,14 +8,13 @@ DATASET_PATH="../../datasets/data/PIADE/"
 
 python $SCRIPT_PATH \
         --n_estimators 100 \
-        --contamination 0.01 \
+        --contamination 0.05 \
         --model "EIF+" \
         --dataset_path $DATASET_PATH \
         --dataset_name $DATASETS \
         --interpretation "EXIFFI+" \
         --scenario 1 \
-        --n_runs 40 \
-        --pre_process
+        --n_runs 40
 
 # To pre_process the data, add the following line:
 # --pre_process \
