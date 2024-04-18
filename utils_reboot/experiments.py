@@ -116,6 +116,8 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
     y_pred=I._predict(dataset.X_test,p).astype(int)
     anomalies=dataset.X_test[np.where(y_pred==1)[0]]
 
+    #import ipdb;ipdb.set_trace()
+
     print('Computing Local Importances...')
     print('#'*50)
 
@@ -258,8 +260,7 @@ def experiment_local_importances(I:Type[ExtendedIsolationForest],
                                n_runs:int=10, 
                                p:float=0.1,
                                model:str="EIF+",
-                               interpretation:str="EXIFFI+",
-                               return_pred_labels:bool=False
+                               interpretation:str="EXIFFI+"
                                ) -> tuple[np.array, float]:
     
     """
@@ -272,14 +273,10 @@ def experiment_local_importances(I:Type[ExtendedIsolationForest],
         p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
         model (str): The name of the model. Defaults to 'EIF+'.
         interpretation (str): Name of the interpretation method to be used. Defaults to "EXIFFI+".
-        return_pred_labels (bool): Whether to return the predicted labels. Defaults to False. It can be used only if n_runs is 1
     
     Returns:
         The average local feature importances vectors for the different runs and the average importances times.
     """
-
-    # if return_pred_labels and n_runs>1:
-    #     raise Exception("return_pred_labels can be used only if n_runs is 1")
 
     cumul_imp=np.zeros(dataset.shape)
     for i in tqdm(trange(n_runs,desc='Local Importances runs')):
@@ -288,16 +285,18 @@ def experiment_local_importances(I:Type[ExtendedIsolationForest],
                     interpretation=interpretation,
                     p=p,
                     return_pred_labels=True)
-        
-        #import ipdb; ipdb.set_trace()
+    
         anomaly_idx=np.where(labels==1)[0]
         cumul_imp[anomaly_idx]+=(fi.values)
     
     cumul_imp/=n_runs
     cumul_imp=pd.DataFrame(cumul_imp,columns=dataset.feature_names)
-    cumul_imp=cumul_imp[cumul_imp.ne(0).any(axis=1)]
+    labels=cumul_imp.ne(0).any(axis=1)
+    cumul_imp=cumul_imp[labels]
+
+    #import ipdb; ipdb.set_trace()
     
-    return cumul_imp
+    return cumul_imp,labels.astype(int)
 
 def compute_plt_data(imp_path:str) -> dict:
 
