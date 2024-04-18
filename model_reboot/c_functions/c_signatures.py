@@ -22,11 +22,13 @@ class Node(c.Structure):
 
     _fields_ = [
         ("intercept", c.c_double),
+        # ("normal", c.POINTER(c.c_double)),
         ("normal", c.POINTER(c.c_double)),
         ("left_child_id", c.c_uint),
         ("right_child_id", c.c_uint),
         ("leaf_data", c.POINTER(LeafData)),
         ("id", c.c_uint),
+        ("is_leaf", c.c_bool),
     ]
 
 

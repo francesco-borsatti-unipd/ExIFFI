@@ -34,9 +34,11 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     if dimensions < df:
         raise ValueError("degree of freedom does not match with dataset dimensions")
     else:
-        vec_ = np.random.normal(loc=0.0, scale=1.0, size=df)
+        vec_ = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
+        # vec_ = np.random.normal(loc=0.0, scale=1.0, size=df)
         indexes = np.random.choice(np.arange(dimensions), df, replace=False)
-        vec = np.zeros(dimensions)
+        vec = np.zeros(dimensions, dtype=np.float64)
+        # vec = np.zeros(dimensions)
         vec[indexes] = vec_
         vec = vec / np.linalg.norm(vec)
     return vec
@@ -102,7 +104,6 @@ tree_spec = [
     ("min_sample", int64),
     ("n", int64),
     ("d", int64),
-    ("node_count", int64),
     ("max_nodes", int64),
     ("child_left", int64[:]),
     ("child_right", int64[:]),
@@ -130,7 +131,6 @@ class ExtendedTree:
         min_sample (int): Minimum number of samples in a node. Defaults to 1
         n (int): Number of samples in the dataset
         d (int): Number of dimensions in the dataset
-        node_count (int): Counter for the number of nodes in the tree
         max_nodes (int): Maximum number of nodes in the tree. Defaults to 10000
         child_left (np.array): Array to store the left child nodes
         child_right (np.array): Array to store the right child nodes
@@ -161,7 +161,6 @@ class ExtendedTree:
         self.min_sample = min_sample
         self.n = n
         self.d = d
-        self.node_count = 1
         self.max_nodes = max_nodes
         self.eta = eta
 
@@ -173,7 +172,7 @@ class ExtendedTree:
         self.cumul_importance = np.zeros((max_nodes, d), dtype=np.float64)
         self.cumul_normals = np.zeros((max_nodes, d), dtype=np.float64)
 
-        self.nodes: List[Node] = []
+        # self.nodes = np.array([], dtype=c.POINTER(Node))
 
     def fit(self, X: np.ndarray) -> None:
         """
@@ -211,6 +210,8 @@ class ExtendedTree:
                 np.min(dist), np.max(dist)
             )
 
+        nodes_p_lst = []
+
         def create_split(
             node: Node,
             subset_ids: np.ndarray,
@@ -226,9 +227,14 @@ class ExtendedTree:
                 self.corrected_depth[node.id] = c_factor(node_size) + depth + 1
                 self.cumul_normals[node.id] = cumul_normals
                 self.cumul_importance[node.id] = cumul_importance
+                node.is_leaf = True  # C
+                node.leaf_data.cumul_normals = self.corrected_depth[node.id]  # C
+                node.leaf_data.cumul_importance = cumul_normals  # C
+                node.leaf_data.corrected_depth = cumul_importance  # C
                 return
             else:
-                node.leaf_data = None # C
+                node.is_leaf = False  # C
+                node.leaf_data = None  # C
 
             self.normals[node.id] = make_rand_vector(self.d - self.locked_dims, self.d)
             node.normal = self.normals[node.id].ctypes.data_as(
@@ -250,46 +256,54 @@ class ExtendedTree:
             partial_importance *= node_size
 
             # LEFT
-            self.node_count += 1
-            self.child_left[node.id] = self.node_count
+            left_node = Node()
+            node.left_child_id = left_node.id = self.child_left[node.id] = len(
+                nodes_p_lst
+            )
+            nodes_p_lst.append(c.pointer(left_node))
+            if len(nodes_p_lst) >= self.max_nodes:
+                raise ValueError("Max number of nodes reached")
             l_cumul_importance = cumul_importance + partial_importance / (
                 len(subset_ids[mask]) + 1
             )
-            left_node = Node(id=self.node_count)
-            node.left_child_id = left_node.id # C
 
             # RIGHT
-            self.node_count += 1
-            self.child_right[node.id] = self.node_count
+            right_node = Node()
+            node.right_child_id = right_node.id = self.child_right[node.id] = len(
+                nodes_p_lst
+            )
+            nodes_p_lst.append(c.pointer(right_node))
+            if len(nodes_p_lst) >= self.max_nodes:
+                raise ValueError("Max number of nodes reached")
             r_cumul_importance = cumul_importance + partial_importance / (
                 len(subset_ids[~mask]) + 1
             )
-            right_node = Node(id=self.node_count)
-            node.right_child_id = right_node.id
 
-            if self.node_count >= self.max_nodes:
-                raise ValueError("Max number of nodes reached")
+            depth += 1
 
             create_split(
                 right_node,
                 subset_ids[~mask],
-                depth + 1,
+                depth,
                 r_cumul_importance,
                 cumul_normals.copy(),
             )
             create_split(
                 left_node,
                 subset_ids[mask],
-                depth + 1,
+                depth,
                 l_cumul_importance,
                 cumul_normals,
             )
 
         subset_ids = np.arange(len(X), dtype=np.uint32)
         root_node = Node(id=node_id)
+        nodes_p_lst.append(c.pointer(root_node))
         create_split(
             root_node, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1])
         )
+
+        self.nodes = (c.POINTER(Node) * len(nodes_p_lst))(*nodes_p_lst)
 
     def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
@@ -303,21 +317,25 @@ class ExtendedTree:
         Returns:
            Leaf node ids for each data point in the dataset.
         """
-        return get_leaf_ids(
-            X, self.child_left, self.child_right, self.normals, self.intercepts
-        )
 
-    def apply(self, X: np.ndarray) -> np.ndarray:
-        """
-        Update the `path_to` attribute with the path to the leaf nodes for each data point in the dataset.
+        leaf_ids = np.zeros(X.shape[0], dtype=c.c_uint)
+        for i, x in enumerate(X):
+            node = self.nodes[0].contents
+            while not node.is_leaf:
+                d = np.dot(
+                    np.ascontiguousarray(x),
+                    np.ctypeslib.as_array(node.normal, shape=(x.shape)).astype(
+                        np.float64
+                    ),
+                )
+                node_id = (
+                    node.left_child_id if d <= node.intercept else node.right_child_id
+                )
+                node = self.nodes[node_id].contents
 
-        Args:
-            X: Input dataset
+            leaf_ids[i] = node.id
 
-        Returns:
-            The method returns the path to the leaf nodes for each data point in the dataset.
-        """
-        return self.path_to[self.leaf_ids(X)]
+        return leaf_ids
 
     def predict(self, ids: np.ndarray) -> np.ndarray:
         """
@@ -381,7 +399,7 @@ class ExtendedIsolationForest:
 
     @property
     def avg_number_of_nodes(self):
-        return np.mean([T.node_count for T in self.trees])
+        return np.mean([len(T.nodes) for T in self.trees])
 
     def fit(self, X: np.ndarray, locked_dims: int | None = None) -> None:
         """
