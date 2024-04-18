@@ -425,7 +425,8 @@ def importance_map(dataset: Type[Dataset],
                    col_names: List[str] = None,
                    isdiffi: Optional[bool] = False,
                    scenario: Optional[int] = 2,
-                   interpretation: Optional[str] = "EXIFFI+"
+                   interpretation: Optional[str] = "EXIFFI+",
+                   contamination: float = 0.1
                    ) -> None:
         """
         Produce the Local Feature Importance Scoremap.   
@@ -443,10 +444,18 @@ def importance_map(dataset: Type[Dataset],
             isdiffi (Optional[bool], optional): A boolean indicating whether the local-DIFFI method should be used to compute the importance values. Defaults to False.
             scenario (Optional[int], optional): The scenario number. Defaults to 2.
             interpretation (Optional[str], optional): Name of the interpretation model used. Defaults to "EXIFFI+".
-        
+            contamination (float, optional): The contamination value. Defaults to 0.1.
+
         Returns:
             The function saves the plot in the specified path and displays it if the show_plot parameter is set to True.
         """
+
+        # Check if dataset.y_test has all zeros
+        if np.all(dataset.y_test == 0):
+            model.fit(dataset.X_train)
+            labels=model._predict(dataset.X_test,contamination)
+        else:
+            labels = np.copy(dataset.y_test)
         
         mins = dataset.X_test.min(axis=0)[list(feats_plot)]
         maxs = dataset.X_test.max(axis=0)[list(feats_plot)]  
@@ -482,12 +491,12 @@ def importance_map(dataset: Type[Dataset],
         ax.contour(xx, yy, (importance_matrix[:, feats_plot[0]] + importance_matrix[:, feats_plot[1]]).reshape(xx.shape), levels=7, cmap=cm.Greys, alpha=0.7)
 
         try:
-            ax.scatter(x[dataset.y_test == 0], y[dataset.y_test == 0], s=40, c="tab:blue", marker="o", edgecolors="k", label="inliers")
-            ax.scatter(x[dataset.y_test == 1], y[dataset.y_test == 1], s=60, c="tab:orange", marker="*", edgecolors="k", label="outliers")
+            ax.scatter(x[labels == 0], y[labels == 0], s=40, c="tab:blue", marker="o", edgecolors="k", label="inliers")
+            ax.scatter(x[labels == 1], y[labels == 1], s=60, c="tab:orange", marker="*", edgecolors="k", label="outliers")
         except IndexError:
             print('Handling the IndexError Exception...')
-            ax.scatter(x[(dataset.y_test == 0)[:, 0]], y[(dataset.y_test == 0)[:, 0]], s=40, c="tab:blue", marker="o", edgecolors="k", label="inliers")
-            ax.scatter(x[(dataset.y_test == 1)[:, 0]], y[(dataset.y_test == 1)[:, 0]], s=60, c="tab:orange", marker="*", edgecolors="k", label="outliers")
+            ax.scatter(x[(labels == 0)[:, 0]], y[(labels == 0)[:, 0]], s=40, c="tab:blue", marker="o", edgecolors="k", label="inliers")
+            ax.scatter(x[(labels == 1)[:, 0]], y[(labels == 1)[:, 0]], s=60, c="tab:orange", marker="*", edgecolors="k", label="outliers")
         
         if (isinstance(col_names, np.ndarray)) or (col_names is None):
             ax.set_xlabel(f'Feature {feats_plot[0]}',fontsize=20)
@@ -504,7 +513,7 @@ def importance_map(dataset: Type[Dataset],
         if isdiffi:
             filename = current_time+"_importance_map_"+dataset.name+"_"+interpretation+f"_{str(scenario)}"+f"_feat_{feats_plot[0]}_{feats_plot[1]}"+".pdf"
         else:
-            filename = current_time+"_importance_map_"+dataset.name+"_"+interpretation+f"_{str(scenario)}"+f"_feat_{feats_plot[0]}_{feats_plot[1]}"+".pdf"
+            filename = current_time+"_importance_map_"+dataset.name+"_"+interpretation+f"_{str(scenario)}"+f"_feat_{feats_plot[0]}_{feats_plot[1]}"+f"_{model.eta}_{int(contamination*100)}_{model.n_estimators}.pdf"
 
         if show_plot:
             plt.show()
