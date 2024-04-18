@@ -1,6 +1,5 @@
 import os, ctypes as c
 import numpy as np, numpy.typing as npt
-from glob import glob
 
 
 class LeafData(c.Structure):
@@ -22,7 +21,6 @@ class Node(c.Structure):
 
     _fields_ = [
         ("intercept", c.c_double),
-        # ("normal", c.POINTER(c.c_double)),
         ("normal", c.POINTER(c.c_double)),
         ("left_child_id", c.c_uint),
         ("right_child_id", c.c_uint),
@@ -33,3 +31,40 @@ class Node(c.Structure):
 
 
 p = os.path.dirname(os.path.abspath(__file__))
+src_path = os.path.join(p, "functions_lib.c")
+lib_path = os.path.join(p, "functions_lib.so")
+
+os.system(f"gcc -Wall -pedantic -shared -fPIC -o {lib_path} {src_path}")
+
+lib = c.CDLL(lib_path)
+
+c_dot_broadcast = lib.dot_broadcast
+c_dot_broadcast.argtypes = [
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    c.POINTER(c.c_double),
+    c.c_uint,
+    c.c_uint,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+]
+c_dot_broadcast.restype = c.POINTER(c.c_double)
+
+
+def dot_broadcast(a: npt.NDArray[np.float64], b) -> npt.NDArray[np.float64]:
+    """
+    Dot product between two arrays.
+    """
+    res = np.zeros(a.shape[0], dtype=np.float64)
+    c_dot_broadcast(a.flatten(), b, a.shape[0], a.shape[1], res)
+    return res
+
+
+c_copy_alloc = lib.copy_alloc
+c_copy_alloc.argtypes = [
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_uint,
+]
+c_copy_alloc.restype = c.POINTER(c.c_double)
+
+
+def copy_alloc(a: npt.NDArray[np.float64]):
+    return c_copy_alloc(a, a.shape[0])

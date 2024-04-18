@@ -14,7 +14,7 @@ import ipdb
 p = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(p)
 
-from c_functions.c_signatures import Node, LeafData
+from c_functions.c_signatures import Node, LeafData, dot_broadcast, copy_alloc
 
 
 @njit(cache=True)
@@ -35,10 +35,8 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
         raise ValueError("degree of freedom does not match with dataset dimensions")
     else:
         vec_ = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
-        # vec_ = np.random.normal(loc=0.0, scale=1.0, size=df)
         indexes = np.random.choice(np.arange(dimensions), df, replace=False)
         vec = np.zeros(dimensions, dtype=np.float64)
-        # vec = np.zeros(dimensions)
         vec[indexes] = vec_
         vec = vec / np.linalg.norm(vec)
     return vec
@@ -184,7 +182,6 @@ class ExtendedTree:
         Returns:
             The method fits the model and does not return any value.
         """
-
         self.extend_tree(node_id=0, X=X, depth=0)
         self.corrected_depth = self.corrected_depth / c_factor(len(X))
 
@@ -212,6 +209,10 @@ class ExtendedTree:
 
         nodes_p_lst = []
 
+        X = X.astype(np.float64)
+
+        self.ids = np.arange(len(X), dtype=np.uint32)
+
         def create_split(
             node: Node,
             subset_ids: np.ndarray,
@@ -231,27 +232,44 @@ class ExtendedTree:
                 node.leaf_data.cumul_normals = self.corrected_depth[node.id]  # C
                 node.leaf_data.cumul_importance = cumul_normals  # C
                 node.leaf_data.corrected_depth = cumul_importance  # C
+
+                self.ids[subset_ids] = node.id
                 return
             else:
                 node.is_leaf = False  # C
                 node.leaf_data = None  # C
 
-            self.normals[node.id] = make_rand_vector(self.d - self.locked_dims, self.d)
-            node.normal = self.normals[node.id].ctypes.data_as(
-                c.POINTER(c.c_double)
-            )  # C
+            normal = make_rand_vector(self.d - self.locked_dims, self.d)
+            self.normals[node.id] = normal
+
+            # DOES NOT WORK:
+            # node.normal = (c.c_double * normal.shape[0])()
+            # c.memmove(node.normal, normal.ctypes.data, normal.shape[0])
+
+            # node.normal = normal.ctypes.data_as(c.POINTER(c.c_double))  # DOES NOT WORK
+
+            # node.normal = self.normals[node.id].ctypes.data_as(c.POINTER(c.c_double))  # WORKS
+
+            node.normal = copy_alloc(normal)
 
             dist = np.dot(
                 np.ascontiguousarray(X[subset_ids]),
-                np.ascontiguousarray(self.normals[node.id]),
+                np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
+                    np.float64
+                ),
             )
+
+            # dist = dot_broadcast(np.ascontiguousarray(X[subset_ids]), node.normal)
+
+            # if not np.array_equal(dist,dist1):
+            #     ipdb.set_trace()
 
             self.intercepts[node.id] = make_random_intercept(dist)
             node.intercept = self.intercepts[node.id].astype(c.c_double)
 
             mask = dist <= self.intercepts[node.id]
 
-            partial_importance = np.abs(self.normals[node.id])
+            partial_importance = np.abs(normal)
             cumul_normals += partial_importance
             partial_importance *= node_size
 
@@ -317,7 +335,6 @@ class ExtendedTree:
         Returns:
            Leaf node ids for each data point in the dataset.
         """
-
         leaf_ids = np.zeros(X.shape[0], dtype=c.c_uint)
         for i, x in enumerate(X):
             node = self.nodes[0].contents
