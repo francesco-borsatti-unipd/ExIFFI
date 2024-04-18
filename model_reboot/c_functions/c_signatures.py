@@ -34,10 +34,11 @@ p = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(p, "functions_lib.c")
 lib_path = os.path.join(p, "functions_lib.so")
 
-os.system(f"gcc -Wall -pedantic -shared -fPIC -o {lib_path} {src_path}")
+os.system(f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -o {lib_path} {src_path}")
 
 lib = c.CDLL(lib_path)
 
+# -- C DOT BROADCAST ----------------------------------------
 c_dot_broadcast = lib.dot_broadcast
 c_dot_broadcast.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
@@ -57,7 +58,7 @@ def dot_broadcast(a: npt.NDArray[np.float64], b) -> npt.NDArray[np.float64]:
     c_dot_broadcast(a.flatten(), b, a.shape[0], a.shape[1], res)
     return res
 
-
+# -- C COPY ALLOC -------------------------------------------
 c_copy_alloc = lib.copy_alloc
 c_copy_alloc.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
@@ -68,3 +69,27 @@ c_copy_alloc.restype = c.POINTER(c.c_double)
 
 def copy_alloc(a: npt.NDArray[np.float64]):
     return c_copy_alloc(a, a.shape[0])
+
+
+# -- C GET LEAF IDS -----------------------------------------
+c_get_leaf_ids = lib.get_leaf_ids
+c_get_leaf_ids.argtypes = [
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_uint,
+    c.c_uint,
+    np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),
+    c.POINTER(c.POINTER(Node)),
+    c.c_uint,
+]
+c_get_leaf_ids.restype = None
+
+def get_leaf_ids(
+    X: npt.NDArray[np.float64], leaf_ids: npt.NDArray[np.int32], nodes, n_nodes: int
+):
+    """
+    Parameters
+    - nodes: array of pointers to Node structures
+    """
+    c_get_leaf_ids(X.flatten(), X.shape[0], X.shape[1], leaf_ids, nodes, n_nodes)
+    
+    

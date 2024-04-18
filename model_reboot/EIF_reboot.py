@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import os, sys, ctypes as c
 
-from typing import ClassVar, Optional, List, Union
+from typing import List, Union
 
 import numpy as np, numpy.typing as npt
 from numba import njit, float64, int64, boolean
-from numba.experimental import jitclass
 from numba.typed import List
 import ipdb
 
@@ -14,11 +13,10 @@ import ipdb
 p = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(p)
 
-from c_functions.c_signatures import Node, LeafData, dot_broadcast, copy_alloc
-
+from c_functions.c_signatures import Node, LeafData, dot_broadcast, copy_alloc, get_leaf_ids
 
 @njit(cache=True)
-def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
+def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     """
     Generate a random unitary vector in the unit ball with a maximum number of dimensions.
     This vector will be successively used in the generation of the splitting hyperplanes.
@@ -42,6 +40,32 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     return vec
 
 
+
+@njit(cache=True)
+def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
+    """
+    Generate a random unitary vector in the unit ball with a maximum number of dimensions.
+    This vector will be successively used in the generation of the splitting hyperplanes.
+
+    Args:
+        df: Degrees of freedom
+        dimensions: number of dimensions of the feature space
+
+    Returns:
+        vec: Random unitary vector in the unit ball
+
+    """
+    vec = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
+
+    if df != dimensions:
+        indexes = np.random.choice(np.arange(dimensions), df, replace=False)
+        vec_ = np.zeros(dimensions, dtype=np.float64)
+        vec_[indexes] = vec
+        vec = vec_
+
+    return vec / np.linalg.norm(vec)
+
+
 @njit(cache=True)
 def c_factor(n: int) -> float:
     """
@@ -60,41 +84,6 @@ def c_factor(n: int) -> float:
     return 2.0 * (np.log(n - 1) + 0.5772156649) - (2.0 * (n - 1.0) / (n * 1.0))
 
 
-@njit(cache=True)
-def get_leaf_ids(
-    X: np.ndarray,
-    child_left: np.ndarray,
-    child_right: np.ndarray,
-    normals: np.ndarray,
-    intercepts: np.ndarray,
-) -> np.ndarray:
-    """
-    Get the leaf node ids for each data point in the dataset.
-
-    Args:
-        X: Data points
-        child_left: Left child node ids
-        child_right: Right child node ids
-        normals: Normal vectors of the splitting hyperplanes
-        intercepts: Intercept values of the splitting hyperplanes
-
-    Returns:
-       Leaf node ids for each data point in the dataset.
-    """
-    res = []
-    for x in X:
-        node_id = 0
-        while child_left[node_id] or child_right[node_id]:
-            d = np.dot(np.ascontiguousarray(x), np.ascontiguousarray(normals[node_id]))
-            node_id = (
-                child_left[node_id]
-                if d <= intercepts[node_id]
-                else child_right[node_id]
-            )
-        res.append(int(node_id))
-    return np.array(res)
-
-
 tree_spec = [
     ("plus", boolean),
     ("locked_dims", int64),
@@ -103,10 +92,6 @@ tree_spec = [
     ("n", int64),
     ("d", int64),
     ("max_nodes", int64),
-    ("child_left", int64[:]),
-    ("child_right", int64[:]),
-    ("normals", float64[:, :]),
-    ("intercepts", float64[:]),
     ("corrected_depth", float64[:]),
     ("cumul_importance", float64[:, :]),
     ("eta", float64),
@@ -116,7 +101,7 @@ tree_spec = [
 nodes: List[Node] = []
 
 
-@jitclass(tree_spec)
+# @jitclass(tree_spec)
 class ExtendedTree:
     """
     Class that represents an Isolation Tree in the Extended Isolation Forest model.
@@ -130,10 +115,6 @@ class ExtendedTree:
         n (int): Number of samples in the dataset
         d (int): Number of dimensions in the dataset
         max_nodes (int): Maximum number of nodes in the tree. Defaults to 10000
-        child_left (np.array): Array to store the left child nodes
-        child_right (np.array): Array to store the right child nodes
-        normals (np.array): Array to store the normal vectors of the splitting hyperplanes
-        intercepts (np.array): Array to store the intercept values of the splitting hyperplanes
         node_size (np.array): Array to store the size of the nodes
         corrected_depth (np.array): Array to store the corrected depth of the nodes
         cumul_importance (np.array): Array to store the cumulative importances
@@ -153,6 +134,9 @@ class ExtendedTree:
         eta: float = 1.5,
     ):
 
+        if locked_dims >= d:
+            raise ValueError("locked_dims must be less than the number of dimensions")
+
         self.plus = plus
         self.locked_dims = locked_dims
         self.max_depth = max_depth
@@ -161,11 +145,8 @@ class ExtendedTree:
         self.d = d
         self.max_nodes = max_nodes
         self.eta = eta
+        self.num_nodes = 0
 
-        self.child_left = np.zeros(max_nodes, dtype=np.int64)
-        self.child_right = np.zeros(max_nodes, dtype=np.int64)
-        self.normals = np.zeros((max_nodes, d), dtype=np.float64)
-        self.intercepts = np.zeros(max_nodes, dtype=np.float64)
         self.corrected_depth = np.zeros(max_nodes, dtype=np.float64)
         self.cumul_importance = np.zeros((max_nodes, d), dtype=np.float64)
         self.cumul_normals = np.zeros((max_nodes, d), dtype=np.float64)
@@ -207,11 +188,10 @@ class ExtendedTree:
                 np.min(dist), np.max(dist)
             )
 
-        nodes_p_lst = []
-
         X = X.astype(np.float64)
 
-        self.ids = np.arange(len(X), dtype=np.uint32)
+        self.nodes = (c.POINTER(Node) * self.max_nodes)()
+        self.num_nodes = 1
 
         def create_split(
             node: Node,
@@ -232,70 +212,63 @@ class ExtendedTree:
                 node.leaf_data.cumul_normals = self.corrected_depth[node.id]  # C
                 node.leaf_data.cumul_importance = cumul_normals  # C
                 node.leaf_data.corrected_depth = cumul_importance  # C
-
-                self.ids[subset_ids] = node.id
                 return
             else:
                 node.is_leaf = False  # C
                 node.leaf_data = None  # C
 
-            normal = make_rand_vector(self.d - self.locked_dims, self.d)
-            self.normals[node.id] = normal
+            # --- This implementation reduces the difference in the versions ---
+            # node.normal = copy_alloc(
+            #     old_make_rand_vector(self.d - self.locked_dims, self.d)
+            # )
+            node.normal = copy_alloc(
+                make_rand_vector(self.d - self.locked_dims, self.d)
+            )
 
-            # DOES NOT WORK:
-            # node.normal = (c.c_double * normal.shape[0])()
-            # c.memmove(node.normal, normal.ctypes.data, normal.shape[0])
+            # --- This implementation reduces the difference in the versions ---
+            # dist = np.dot(
+            #     np.ascontiguousarray(X[subset_ids]),
+            #     np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
+            #         np.float64
+            #     ),
+            # )
+            dist = dot_broadcast(np.ascontiguousarray(X[subset_ids]), node.normal)
 
-            # node.normal = normal.ctypes.data_as(c.POINTER(c.c_double))  # DOES NOT WORK
+            node.intercept = make_random_intercept(dist)
 
-            # node.normal = self.normals[node.id].ctypes.data_as(c.POINTER(c.c_double))  # WORKS
 
-            node.normal = copy_alloc(normal)
-
-            dist = np.dot(
-                np.ascontiguousarray(X[subset_ids]),
+            ###############
+            # NOTE: CONVERT THIS IN C
+            mask = dist <= node.intercept
+            partial_importance = np.abs(
                 np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
                     np.float64
-                ),
+                )
             )
-
-            # dist = dot_broadcast(np.ascontiguousarray(X[subset_ids]), node.normal)
-
-            # if not np.array_equal(dist,dist1):
-            #     ipdb.set_trace()
-
-            self.intercepts[node.id] = make_random_intercept(dist)
-            node.intercept = self.intercepts[node.id].astype(c.c_double)
-
-            mask = dist <= self.intercepts[node.id]
-
-            partial_importance = np.abs(normal)
             cumul_normals += partial_importance
             partial_importance *= node_size
-
-            # LEFT
-            left_node = Node()
-            node.left_child_id = left_node.id = self.child_left[node.id] = len(
-                nodes_p_lst
-            )
-            nodes_p_lst.append(c.pointer(left_node))
-            if len(nodes_p_lst) >= self.max_nodes:
-                raise ValueError("Max number of nodes reached")
             l_cumul_importance = cumul_importance + partial_importance / (
                 len(subset_ids[mask]) + 1
             )
-
-            # RIGHT
-            right_node = Node()
-            node.right_child_id = right_node.id = self.child_right[node.id] = len(
-                nodes_p_lst
-            )
-            nodes_p_lst.append(c.pointer(right_node))
-            if len(nodes_p_lst) >= self.max_nodes:
-                raise ValueError("Max number of nodes reached")
             r_cumul_importance = cumul_importance + partial_importance / (
                 len(subset_ids[~mask]) + 1
             )
+            ###############
+
+            # LEFT
+            left_node = Node()
+            node.left_child_id = left_node.id = self.num_nodes
+            self.num_nodes += 1
+            self.nodes[node.left_child_id] = c.pointer(left_node)
+
+            # RIGHT
+            right_node = Node()
+            node.right_child_id = right_node.id = self.num_nodes
+            self.num_nodes += 1
+            self.nodes[node.right_child_id] = c.pointer(right_node)
+
+            if self.num_nodes >= self.max_nodes:
+                raise ValueError("Max number of nodes reached")
 
             depth += 1
 
@@ -316,18 +289,14 @@ class ExtendedTree:
 
         subset_ids = np.arange(len(X), dtype=np.uint32)
         root_node = Node(id=node_id)
-        nodes_p_lst.append(c.pointer(root_node))
+        self.nodes[0] = c.pointer(root_node)
         create_split(
             root_node, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1])
         )
 
-        self.nodes = (c.POINTER(Node) * len(nodes_p_lst))(*nodes_p_lst)
-
     def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
         Get the leaf node ids for each data point in the dataset.
-
-        This is a stub method of `get_leaf_ids`.
 
         Args:
             X: Input dataset
@@ -335,22 +304,24 @@ class ExtendedTree:
         Returns:
            Leaf node ids for each data point in the dataset.
         """
-        leaf_ids = np.zeros(X.shape[0], dtype=c.c_uint)
-        for i, x in enumerate(X):
-            node = self.nodes[0].contents
-            while not node.is_leaf:
-                d = np.dot(
-                    np.ascontiguousarray(x),
-                    np.ctypeslib.as_array(node.normal, shape=(x.shape)).astype(
-                        np.float64
-                    ),
-                )
-                node_id = (
-                    node.left_child_id if d <= node.intercept else node.right_child_id
-                )
-                node = self.nodes[node_id].contents
+        leaf_ids = np.zeros(X.shape[0], dtype=np.int32)
 
-            leaf_ids[i] = node.id
+        # --- This implementation reduces the difference in the versions ---
+        # for i, x in enumerate(X):
+        #     node = self.nodes[0].contents
+        #     while not node.is_leaf:
+        #         d = np.dot(
+        #             np.ascontiguousarray(x),
+        #             np.ctypeslib.as_array(node.normal, shape=(x.shape)).astype(
+        #                 np.float64
+        #             ),
+        #         )
+        #         node_id = (
+        #             node.left_child_id if d <= node.intercept else node.right_child_id
+        #         )
+        #         node = self.nodes[node_id].contents
+        #     leaf_ids[i] = node.id
+        get_leaf_ids(X, leaf_ids, self.nodes, self.num_nodes)
 
         return leaf_ids
 
@@ -416,7 +387,7 @@ class ExtendedIsolationForest:
 
     @property
     def avg_number_of_nodes(self):
-        return np.mean([len(T.nodes) for T in self.trees])
+        return np.mean([T.num_nodes for T in self.trees])
 
     def fit(self, X: np.ndarray, locked_dims: int | None = None) -> None:
         """
