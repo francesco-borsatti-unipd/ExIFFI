@@ -113,7 +113,7 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
     if fit_model:
         I.fit(dataset.X_train)
 
-    y_pred=I._predict(dataset.X_test,p)
+    y_pred=I._predict(dataset.X_test,p).astype(int)
     anomalies=dataset.X_test[np.where(y_pred==1)[0]]
 
     print('Computing Local Importances...')
@@ -125,8 +125,6 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
         fi=I.local_importances(anomalies)
 
     print('Local Importances computed')
-
-    #import ipdb; ipdb.set_trace()
 
     fi=pd.DataFrame(fi,columns=dataset.feature_names)
 
@@ -235,7 +233,7 @@ def experiment_global_importances(I:Type[ExtendedIsolationForest],
 
     fi=np.zeros(shape=(n_runs,dataset.X.shape[1]))
     #imp_times=[]
-    for i in tqdm(range(n_runs)):
+    for i in tqdm(trange(n_runs,desc='Global Importances runs')):
         #start_time = time.time()
         fi[i,:]=compute_global_importances(I,
                         dataset,
@@ -254,6 +252,52 @@ def experiment_global_importances(I:Type[ExtendedIsolationForest],
     fi=pd.DataFrame(fi,columns=dataset.feature_names)
 
     return fi 
+
+def experiment_local_importances(I:Type[ExtendedIsolationForest],
+                               dataset:Type[Dataset],
+                               n_runs:int=10, 
+                               p:float=0.1,
+                               model:str="EIF+",
+                               interpretation:str="EXIFFI+",
+                               return_pred_labels:bool=False
+                               ) -> tuple[np.array, float]:
+    
+    """
+    Compute the local feature importances for an interpration model on a specific dataset for a number of runs.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        n_runs (int): The number of runs. Defaults to 10.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        model (str): The name of the model. Defaults to 'EIF+'.
+        interpretation (str): Name of the interpretation method to be used. Defaults to "EXIFFI+".
+        return_pred_labels (bool): Whether to return the predicted labels. Defaults to False. It can be used only if n_runs is 1
+    
+    Returns:
+        The average local feature importances vectors for the different runs and the average importances times.
+    """
+
+    # if return_pred_labels and n_runs>1:
+    #     raise Exception("return_pred_labels can be used only if n_runs is 1")
+
+    cumul_imp=np.zeros(dataset.shape)
+    for i in tqdm(trange(n_runs,desc='Local Importances runs')):
+        fi,labels=compute_local_importances(I,
+                    dataset,
+                    interpretation=interpretation,
+                    p=p,
+                    return_pred_labels=True)
+        
+        #import ipdb; ipdb.set_trace()
+        anomaly_idx=np.where(labels==1)[0]
+        cumul_imp[anomaly_idx]+=(fi.values)
+    
+    cumul_imp/=n_runs
+    cumul_imp=pd.DataFrame(cumul_imp,columns=dataset.feature_names)
+    cumul_imp=cumul_imp[cumul_imp.ne(0).any(axis=1)]
+    
+    return cumul_imp
 
 def compute_plt_data(imp_path:str) -> dict:
 
