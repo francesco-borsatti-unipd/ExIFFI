@@ -110,6 +110,7 @@ print(f'Dataset: {dataset.name}')
 print(f'Model: {model}')
 print(f'Estimators: {n_estimators}')
 print(f'Contamination: {contamination}')
+print(f'Eta: {eta}')
 print(f'Interpretation Model: {interpretation}')
 print(f'Scenario: {scenario}')
 print(f'Number of runs: {n_runs}')
@@ -136,10 +137,14 @@ path_experiment_model = path_experiment + "/" + model
 if not os.path.exists(path_experiment_model):
     os.makedirs(path_experiment_model)
 
+path_experiment_model_eta = path_experiment_model + "/" + interpretation + f"/eta_{eta}"
+if not os.path.exists(path_experiment_model_eta):
+    os.makedirs(path_experiment_model_eta)
+
 if pre_process:
-    path_experiment_model_interpretation_trees = path_experiment_model + "/" + interpretation + f"/trees_{n_estimators}_pre_process"
+    path_experiment_model_interpretation_trees = path_experiment_model_eta + f"/trees_{n_estimators}_pre_process"
 else:
-    path_experiment_model_interpretation_trees = path_experiment_model + "/" + interpretation + f"/trees_{n_estimators}"
+    path_experiment_model_interpretation_trees = path_experiment_model_eta + f"/trees_{n_estimators}"
     
 if not os.path.exists(path_experiment_model_interpretation_trees):
     os.makedirs(path_experiment_model_interpretation_trees)
