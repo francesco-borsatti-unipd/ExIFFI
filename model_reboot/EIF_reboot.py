@@ -19,6 +19,7 @@ from c_functions.c_signatures import (
     dot_broadcast,
     copy_alloc,
     get_leaf_ids,
+    c_factor
 )
 
 
@@ -71,24 +72,6 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
         vec = vec_
 
     return vec / np.linalg.norm(vec)
-
-
-@njit(cache=True)
-def c_factor(n: int) -> float:
-    """
-    Average path length of unsuccesful search in a binary search tree given n points.
-    This is a constant factor that will be used as a normalization factor in the Anomaly Score calculation.
-
-    Args:
-        n: Number of data points for the BST.
-
-    Returns:
-        Average path length of unsuccesful search in a BST
-
-    """
-    if n <= 1:
-        return 0
-    return 2.0 * (np.log(n - 1) + 0.5772156649) - (2.0 * (n - 1.0) / (n * 1.0))
 
 
 tree_spec = [

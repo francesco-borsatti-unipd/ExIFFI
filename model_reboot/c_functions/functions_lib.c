@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 struct LeafData
 {
@@ -83,4 +84,14 @@ void get_leaf_ids(double *dataset,
         }
         dest_leaf_ids[i] = node.id;
     }
+}
+
+double c_factor(int n)
+{
+    if (n <= 1)
+    {
+        return 0.0;
+    }
+    double d_n = (double)n;
+    return 2.0 * (log(d_n - 1) + 0.5772156649) - (2.0 * (d_n - 1) / d_n);
 }
