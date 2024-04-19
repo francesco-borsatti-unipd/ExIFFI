@@ -13,7 +13,14 @@ import ipdb
 p = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(p)
 
-from c_functions.c_signatures import Node, LeafData, dot_broadcast, copy_alloc, get_leaf_ids
+from c_functions.c_signatures import (
+    Node,
+    LeafData,
+    dot_broadcast,
+    copy_alloc,
+    get_leaf_ids,
+)
+
 
 @njit(cache=True)
 def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
@@ -31,14 +38,14 @@ def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     """
     if dimensions < df:
         raise ValueError("degree of freedom does not match with dataset dimensions")
-    else:
-        vec_ = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
-        indexes = np.random.choice(np.arange(dimensions), df, replace=False)
-        vec = np.zeros(dimensions, dtype=np.float64)
-        vec[indexes] = vec_
-        vec = vec / np.linalg.norm(vec)
-    return vec
 
+    vec_ = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
+
+    indexes = np.random.choice(np.arange(dimensions), df, replace=False)
+    vec = np.zeros(dimensions, dtype=np.float64)
+    vec[indexes] = vec_
+
+    return vec / np.linalg.norm(vec)
 
 
 @njit(cache=True)
@@ -208,10 +215,13 @@ class ExtendedTree:
                 self.corrected_depth[node.id] = c_factor(node_size) + depth + 1
                 self.cumul_normals[node.id] = cumul_normals
                 self.cumul_importance[node.id] = cumul_importance
+
                 node.is_leaf = True  # C
-                node.leaf_data.cumul_normals = self.corrected_depth[node.id]  # C
-                node.leaf_data.cumul_importance = cumul_normals  # C
-                node.leaf_data.corrected_depth = cumul_importance  # C
+
+                # node.leaf_data.corrected_depth = self.corrected_depth[node.id]
+                # node.leaf_data.cumul_normals = cumul_normals
+                # node.leaf_data.cumul_importance = cumul_importance
+
                 return
             else:
                 node.is_leaf = False  # C
@@ -235,7 +245,6 @@ class ExtendedTree:
             dist = dot_broadcast(np.ascontiguousarray(X[subset_ids]), node.normal)
 
             node.intercept = make_random_intercept(dist)
-
 
             ###############
             # NOTE: CONVERT THIS IN C

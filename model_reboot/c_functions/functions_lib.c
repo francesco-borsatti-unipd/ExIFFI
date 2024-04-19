@@ -17,6 +17,9 @@ struct Node
     bool is_leaf;
 };
 
+/**
+ * @brief Dot product between vector a of shape (shape0, shape1) and vector b of shape (shape1,)
+*/
 void dot_broadcast(double *a, double *b, int shape0, int shape1, double *res)
 {
     // #pragma omp parallel for reduction(+ : result)
