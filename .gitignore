@@ -6,6 +6,7 @@ data/data_DIFFI/
 data/syn/syn_feat
 exiffi_env.yml
 utils_reboot/time_dict_backup/
+model_reboot_checkpoint/
 
 # Python
 *.pickle
