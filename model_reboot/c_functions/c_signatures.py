@@ -35,7 +35,9 @@ lib_path = os.path.join(p, "functions_lib.so")
 
 if os.environ.get("COMPILE_C_EXIFFI") == "1":
     src_path = os.path.join(p, "functions_lib.c")
-    os.system(f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -o {lib_path} {src_path}")
+    os.system(
+        f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -lm -o {lib_path} {src_path}"
+    )
 
 lib = c.CDLL(lib_path)
 
@@ -58,6 +60,7 @@ def dot_broadcast(a: npt.NDArray[np.float64], b) -> npt.NDArray[np.float64]:
     res = np.zeros(a.shape[0], dtype=np.float64)
     c_dot_broadcast(a.flatten(), b, a.shape[0], a.shape[1], res)
     return res
+
 
 # -- C COPY ALLOC -------------------------------------------
 c_copy_alloc = lib.copy_alloc
@@ -84,6 +87,7 @@ c_get_leaf_ids.argtypes = [
 ]
 c_get_leaf_ids.restype = None
 
+
 def get_leaf_ids(
     X: npt.NDArray[np.float64], leaf_ids: npt.NDArray[np.int32], nodes, n_nodes: int
 ):
@@ -92,5 +96,12 @@ def get_leaf_ids(
     - nodes: array of pointers to Node structures
     """
     c_get_leaf_ids(X.flatten(), X.shape[0], X.shape[1], leaf_ids, nodes, n_nodes)
-    
-    
+
+
+# -- C C_FACTOR ---------------------------------------------
+c_c_factor = lib.c_factor
+c_c_factor.argtypes = [c.c_int]
+c_c_factor.restype = c.c_double
+
+def c_factor(n: int) -> float:
+    return c_c_factor(n)
