@@ -6,6 +6,9 @@ cwd = os.getcwd()
 #os.chdir('/Users/alessio/Documents/ExIFFI/experiments')
 sys.path.append("..")
 from collections import namedtuple
+from append_to_path import append_dirname
+
+append_dirname("ExIFFI_Industrial_Test")
 
 from utils_reboot.experiments import *
 from utils_reboot.datasets import *
@@ -13,7 +16,8 @@ from utils_reboot.plots import *
 from utils_reboot.utils import *
 
 
-from model_reboot.EIF_reboot import ExtendedIsolationForest
+#from model_reboot.EIF_reboot import ExtendedIsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
 import argparse
 
 # Create the argument parser
@@ -35,6 +39,7 @@ parser.add_argument('--pre_process',type=bool,default=False, help='If set, prepr
 parser.add_argument('--feature1',type=str,help='First feature of the pair to plot in the importance map')
 parser.add_argument('--feature2',type=str,help='Second feature of the pair to plot in the importance map')
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
+parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -55,6 +60,7 @@ pre_process = args.pre_process
 feature1 = args.feature1
 feature2 = args.feature2
 eta = args.eta
+downsample = args.downsample
 
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
@@ -62,7 +68,7 @@ dataset.drop_duplicates()
 feats_plot=get_feature_indexes(dataset,feature1,feature2)
 
 # Downsample datasets with more than 7500 samples (i.e. diabetes shuttle and moodify)
-if dataset.shape[0]>7500:
+if (dataset.shape[0]>7500) and downsample:
     dataset.downsample(max_samples=7500)
 
 if scenario==2:
@@ -116,6 +122,7 @@ print(f'Contamination: {contamination}')
 print(f'Eta: {eta}')
 print(f'Interpretation Model: {interpretation}')
 print(f'Scenario: {scenario}')
+print(f'Downsample: {downsample}')
 print(f'Features to plot: {dataset.feature_names[feats_plot[0]]}, {dataset.feature_names[feats_plot[1]]}')
 print('#'*50)
 

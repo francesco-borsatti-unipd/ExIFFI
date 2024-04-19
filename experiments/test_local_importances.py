@@ -1,9 +1,12 @@
 import sys
 import os
-os.environ["NUMBA_DISABLE_JIT"] = "0"  # "1" to disable, "0" to enable
+os.environ["NUMBA_DISABLE_JIT"] = "0"  # "1" to disable numba, "0" to enable numba
 cwd = os.getcwd()
 sys.path.append("..")
 from collections import namedtuple
+from append_to_path import append_dirname
+
+append_dirname("ExIFFI_Industrial_Test")
 
 from utils_reboot.experiments import *
 from utils_reboot.utils import *
@@ -11,7 +14,8 @@ from utils_reboot.datasets import *
 from utils_reboot.plots import *
 
 
-from model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
+#from model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
 from sklearn.ensemble import IsolationForest as sklearn_IsolationForest
 import argparse
 
@@ -63,8 +67,8 @@ dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../.
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples
-if dataset.shape[0] > 7500:
-    dataset.downsample(max_samples=7500)
+# if dataset.shape[0] > 7500:
+#     dataset.downsample(max_samples=7500)
 
 # If a dataset has lables (all the datasets except piade), the contamination is set to dataset.perc_outliers
 if dataset.perc_outliers != 0:
