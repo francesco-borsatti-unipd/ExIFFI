@@ -36,7 +36,7 @@ lib_path = os.path.join(p, "functions_lib.so")
 if os.environ.get("COMPILE_C_EXIFFI") == "1":
     src_path = os.path.join(p, "functions_lib.c")
     os.system(
-        f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -lm -o {lib_path} {src_path}"
+        f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -lm -o '{lib_path}' '{src_path}'"
     )
 
 lib = c.CDLL(lib_path)
