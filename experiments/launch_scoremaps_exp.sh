@@ -2,62 +2,23 @@
 
 SCRIPT_PATH="test_local_scoremaps.py"
 
-DATASETS="piade_s2"
+DATASETS="TEP"
 
-DATASET_PATH="../../datasets/data/PIADE/"
+DATASET_PATH="../../datasets/data/TEP/"
 
     python $SCRIPT_PATH \
         --dataset_name $DATASETS \
         --dataset_path $DATASET_PATH \
-        --n_estimators 100 \
+        --n_estimators 500 \
         --contamination 0.1 \
         --model "EIF+" \
         --interpretation "EXIFFI+" \
-        --scenario 1 \
-        --feature1 "#changes" \
-        --feature2 "A_010"
+        --scenario 2 \
+        --feature1 "xmeas_11" \
+        --feature2 "xmeas_20" \
+        --downsample 1 \
+        --pre_process 1
 
-    # python $SCRIPT_PATH \
-    #     --dataset_name $DATASETS \
-    #     --dataset_path $DATASET_PATH \
-    #     --model "EIF+" \
-    #     --interpretation "EXIFFI+" \
-    #     --scenario 1 \
-    #     --feats_plot "(1,0)"
-
-    # python $SCRIPT_PATH \
-    #     --dataset_name $DATASETS \
-    #     --dataset_path $DATASET_PATH \
-    #     --model "EIF" \
-    #     --interpretation "EXIFFI" \
-    #     --pre_process 1 \
-    #     --scenario 2 \
-    #     --feats_plot "(3,0)"
-
-    # python $SCRIPT_PATH \
-    #     --dataset_name $DATASETS \
-    #     --dataset_path $DATASET_PATH \
-    #     --model "EIF" \
-    #     --interpretation "EXIFFI" \
-    #     --pre_process 1 \
-    #     --scenario 1 \
-    #     --feats_plot "(3,0)"
-
-    # python $SCRIPT_PATH \
-    #     --dataset_name $DATASETS \
-    #     --dataset_path $DATASET_PATH \
-    #     --model "IF" \
-    #     --interpretation "DIFFI" \
-    #     --pre_process 1 \
-    #     --scenario 2 \
-    #     --feats_plot "(3,0)"
-
-    # python $SCRIPT_PATH \
-    #     --dataset_name $DATASETS \
-    #     --dataset_path $DATASET_PATH \
-    #     --model "IF" \
-    #     --interpretation "DIFFI" \
-    #     --pre_process 1 \
-    #     --scenario 1 \
-    #     --feats_plot "(3,0)"
+    # To pre process the data, add the following line, use for TEP   
+    #--pre_process 1
 

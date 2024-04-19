@@ -2,20 +2,20 @@
 
 SCRIPT_PATH="test_local_importances.py"
 
-DATASETS="piade_s2"
+DATASETS="TEP"
 
-DATASET_PATH="../../datasets/data/PIADE/"
+DATASET_PATH="../../datasets/data/TEP/"
 
 python $SCRIPT_PATH \
-        --n_estimators 100 \
+        --n_estimators 500 \
         --contamination 0.01 \
         --model "EIF+" \
         --dataset_path $DATASET_PATH \
         --dataset_name $DATASETS \
         --interpretation "EXIFFI+" \
-        --scenario 1 \
+        --scenario 2 \
         --n_runs 40 \
-        --eta 2
+        --pre_process
 
 # To pre_process the data, add the following line:
 # --pre_process \
