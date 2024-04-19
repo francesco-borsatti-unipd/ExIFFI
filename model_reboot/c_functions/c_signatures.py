@@ -31,10 +31,11 @@ class Node(c.Structure):
 
 
 p = os.path.dirname(os.path.abspath(__file__))
-src_path = os.path.join(p, "functions_lib.c")
 lib_path = os.path.join(p, "functions_lib.so")
 
-os.system(f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -o {lib_path} {src_path}")
+if os.environ.get("COMPILE_C_EXIFFI") == "1":
+    src_path = os.path.join(p, "functions_lib.c")
+    os.system(f"gcc -Wall -pedantic -shared -fPIC -O2 -fopenmp -o {lib_path} {src_path}")
 
 lib = c.CDLL(lib_path)
 
