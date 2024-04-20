@@ -505,7 +505,8 @@ def performance(y_pred:np.array,
                 n_runs:int=10,
                 filename:str="",
                 path:str=os.getcwd(),
-                save:bool=True
+                save:bool=True,
+                downsample:bool=False
                 ) -> tuple[pd.DataFrame,str]: 
     
     """
@@ -525,7 +526,8 @@ def performance(y_pred:np.array,
         filename (str): The filename. Defaults to "".
         path (str): The path to the experiments folder. Defaults to os.getcwd().
         save (bool): Whether to save the results. Defaults to True.
-
+        downsample (bool): Whether to downsample the dataset. Defaults to False.
+        
     Returns:
         The performance metrics and the path to the results.
     """
@@ -537,7 +539,7 @@ def performance(y_pred:np.array,
     y_pred=y_pred.astype(int)
     y_true=y_true.astype(int)
 
-    if dataset.X.shape[0]>7500:
+    if dataset.X.shape[0]>7500 and downsample:
         dataset.downsample(max_samples=7500)
 
     precisions=[]

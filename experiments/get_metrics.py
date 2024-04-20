@@ -2,12 +2,15 @@ import os
 import sys
 sys.path.append('../')
 cwd=os.getcwd()
+from append_to_path import append_dirname
+append_dirname("ExIFFI_Industrial_Test")
 import pickle
 from utils_reboot.utils import *
 from utils_reboot.datasets import *
 import argparse
-#from pyod.models.dif import DIF
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest
 from sklearn.metrics import precision_score, recall_score, average_precision_score, roc_auc_score
+
 
 # Create the argument parser
 parser = argparse.ArgumentParser(description='Test Performance Metrics')
@@ -20,8 +23,11 @@ parser.add_argument('--max_depth', type=str, default='auto', help='EIF parameter
 parser.add_argument('--max_samples', type=str, default='auto', help='EIF parameter: max_samples')
 parser.add_argument('--contamination', type=npt.NDArray, default=np.linspace(0.0,0.1,10), help='Global feature importances parameter: contamination')
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: IF, EIF, EIF+')
+parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
 parser.add_argument('--pre_process',action='store_true', help='If set, preprocess the dataset')
+parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
+parser.add_argument('--return_perf', action='store_true', help='If set return the model performances results')
 
 def get_precision_file(dataset,model,scenario):    
     path=os.path.join(cwd+"/results/",dataset.name,'experiments','metrics',model,f'scenario_{str(scenario)}')
@@ -40,8 +46,11 @@ max_depth = args.max_depth
 max_samples = args.max_samples
 contamination = args.contamination
 model = args.model
+interpretation = args.interpretation
 scenario = args.scenario
 pre_process = args.pre_process
+downsample = args.downsample
+return_perf = args.return_perf
 
 dataset = Dataset(dataset_name, path = dataset_path)
 dataset.drop_duplicates()
@@ -52,12 +61,16 @@ print('Performance Metrics Experiment')
 print('#'*50)
 print(f'Dataset: {dataset.name}')
 print(f'Model: {model}')
+print(f'Interpretation: {interpretation}')
 print(f'Scenario: {scenario}')
 print('#'*50)
 
 # Downsample datasets with more than 7500 samples (i.e. diabetes shuttle and moodify)
-if dataset.shape[0]>7500:
+if (dataset.shape[0]>7500) and downsample:
     dataset.downsample(max_samples=7500)
+
+if dataset.perc_outliers != 0:
+    contamination = dataset.perc_outliers
 
 if scenario==2:
     dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
@@ -82,36 +95,22 @@ elif model == "EIF":
     I = ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 elif (model == "IF"):
     I = IsolationForest(n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
-elif model == "DIF":
-    I=DIF(max_samples=max_samples)
-elif model == "AnomalyAutoencoder":
-    I = AutoEncoder(hidden_neurons=[dataset.X.shape[1], 32, 32, dataset.X.shape[1]], contamination=0.1, epochs=50, random_state=42,verbose=0)
 
-I.fit(dataset.X_train)
+if return_perf:
+    print("#"*50)
+    print(f'Performance values for {dataset.name} {model} scenario {str(scenario)}')
+    print(get_precision_file(dataset,model,scenario).T)
+    print("#"*50)
 
-y_pred=I._predict(dataset.X_test,p=dataset.perc_outliers)
-score=I.predict(dataset.X_test)
+os.chdir('../')
+cwd=os.getcwd()
 
-# y_pred=I.predict(dataset.X_test,contamination=dataset.perc_outliers)
-# score=I.decision_function(dataset.X_test)
+filename = cwd + "/utils_reboot/EIF+_vs_ACME-AD.pickle"
+with open(filename, "rb") as file:
+    dict_time = pickle.load(file)
 
-
-#print(f'\n\nPredictions of {model} for {dataset.name} in scenario {str(scenario)} with pre_process = {pre_process}:\n\n{y_pred}\n\n')
-print(f'\n\nPrecision:{precision_score(dataset.y_test,y_pred)}')
-print(f'\n\nRecall:{recall_score(dataset.y_test,y_pred)}')
-print(f'\n\nAverage Precision:{average_precision_score(dataset.y_test,score)}')
-print(f'\n\nROC AUC Score: {roc_auc_score(dataset.y_test,y_pred)}\n\n')
-print("#"*50)
-
-
-# print(f'Anomaly Score of the anomalous points: {score[dataset.y_test==1]}\n\n')
-# print(f'Anomaly Score of the normal points: {score[dataset.y_test==0]}\n\n')
-# print("#"*50)
-# print(f'Mean Anomaly Score of the anomalous points: {np.mean(score[dataset.y_test==1])}\n\n')
-# print(f'Mean Anomaly Score of the normal points: {np.mean(score[dataset.y_test==0])}\n\n')
-# print("#"*50)
-
-# print("#"*50)
-# print(f'Performance values for {dataset.name} {model} scenario {str(scenario)}')
-# print(get_precision_file(dataset,model,scenario).T)
-# print("#"*50)
+print('#'*50)
+print(f'Fit time for {model} {dataset.name} scenario {str(scenario)}: {np.round(np.mean(dict_time["fit"][model][dataset.name]),3)}')
+print(f'Predict time for {model} {dataset.name} scenario {str(scenario)}: {np.round(np.mean(dict_time["predict"][model][dataset.name]),3)}')
+print(f'Importances time for {model} {dataset.name} scenario {str(scenario)}: {dict_time["importances"][interpretation][dataset.name]}')
+print('#'*50)

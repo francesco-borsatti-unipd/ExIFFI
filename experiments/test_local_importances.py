@@ -35,6 +35,7 @@ parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interp
 parser.add_argument('--scenario', type=int, default=1, help='scenario for training the model. Possible values: [1,2]')
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
 parser.add_argument('--n_runs', type=int, default=10, help='Number of runs of Local Feature importance computation')
+parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -61,14 +62,15 @@ interpretation = args.interpretation
 scenario = args.scenario
 eta = args.eta
 n_runs = args.n_runs 
+downsample = args.downsample
 
 # Load dataset
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
 
-# Downsample datasets with more than 7500 samples
-# if dataset.shape[0] > 7500:
-#     dataset.downsample(max_samples=7500)
+# Downsample datasets with more than 7500 samples (i.e. diabetes shuttle and moodify)
+if (dataset.shape[0]>7500) and downsample:
+    dataset.downsample(max_samples=7500)
 
 # If a dataset has lables (all the datasets except piade), the contamination is set to dataset.perc_outliers
 if dataset.perc_outliers != 0:
