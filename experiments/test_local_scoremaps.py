@@ -71,6 +71,9 @@ feats_plot=get_feature_indexes(dataset,feature1,feature2)
 if (dataset.shape[0]>7500) and downsample:
     dataset.downsample(max_samples=7500)
 
+if dataset.perc_outliers != 0:
+    contamination = dataset.perc_outliers
+
 if scenario==2:
     #dataset.split_dataset(train_size=0.8,contamination=0)
     dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)

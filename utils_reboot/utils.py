@@ -6,8 +6,9 @@ import pandas as pd
 import os
 import json
 from collections import namedtuple
-from model_reboot.EIF_reboot import ExtendedIsolationForest
-from utils_reboot.datasets import Dataset
+from append_to_path import append_dirname
+append_dirname('ExIFFI_Industrial_Test')
+from ExIFFI_original.utils_reboot.datasets import Dataset
 from sklearn.ensemble import IsolationForest 
 # from pyod.models.dif import DIF as oldDIF
 # from pyod.models.auto_encoder import AutoEncoder as oldAutoEncoder
@@ -158,8 +159,7 @@ class sklearn_IsolationForest(IsolationForest):
 #         y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
 #         return y_hat
     
-def update_feature_names(dataset:pd.DataFrame,
-                        dataset_name:str,
+def update_feature_names(dataset_name:str,
                         feature_names_filepath:Optional[str]='../datasets/data/data_feature_names.json',
                         feature_names:Optional[list[str]]=None) -> None:
     
