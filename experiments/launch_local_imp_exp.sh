@@ -2,7 +2,7 @@
 
 SCRIPT_PATH="test_local_importances.py"
 
-DATASETS="TEP"
+DATASETS="TEP_ACME"
 
 DATASET_PATH="../../datasets/data/TEP/"
 

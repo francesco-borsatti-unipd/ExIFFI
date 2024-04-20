@@ -2,22 +2,22 @@
 
 SCRIPT_PATH="test_local_scoremaps.py"
 
-DATASETS="TEP"
+DATASETS="TEP_ACME"
 
 DATASET_PATH="../../datasets/data/TEP/"
 
     python $SCRIPT_PATH \
         --dataset_name $DATASETS \
         --dataset_path $DATASET_PATH \
-        --n_estimators 500 \
+        --n_estimators 300 \
         --contamination 0.1 \
         --model "EIF+" \
         --interpretation "EXIFFI+" \
         --scenario 2 \
         --feature1 "xmeas_11" \
-        --feature2 "xmeas_20" \
+        --feature2 "xmeas_22" \
         --downsample 1 \
-        --pre_process 1
+        --pre_process 1 \
 
     # To pre process the data, add the following line, use for TEP   
     #--pre_process 1
