@@ -14,12 +14,11 @@ DATASET_PATH="../../datasets/data/PIADE/"
 #     --dataset_name $DATASETS \
 #     --dataset_path $DATASET_PATH \
 #     --model "EIF+" \
-#     --interpretation "EXIFFI+" \
+#     --interpretation "ACME" \
 #     --n_estimators 300 \
 #     --scenario 2 \
 #     --pre_process 1 \
-#     --compute_GFI 1 \
-#     --compute_perf
+#     --compute_GFI 1 
 
 # For PIADE
 
@@ -27,7 +26,8 @@ python $SCRIPT_PATH \
     --dataset_name $DATASETS \
     --dataset_path $DATASET_PATH \
     --model "EIF+" \
-    --interpretation "EXIFFI+" \
+    --interpretation "ACME" \
     --n_estimators 300 \
+    --contamination 0.01 \
     --scenario 2 \
     --compute_GFI 1

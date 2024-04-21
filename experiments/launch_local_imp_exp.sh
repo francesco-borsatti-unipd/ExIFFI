@@ -7,12 +7,12 @@ DATASETS="TEP_ACME"
 DATASET_PATH="../../datasets/data/TEP/"
 
 python $SCRIPT_PATH \
-        --n_estimators 500 \
+        --n_estimators 300 \
         --contamination 0.01 \
         --model "EIF+" \
         --dataset_path $DATASET_PATH \
         --dataset_name $DATASETS \
-        --interpretation "EXIFFI+" \
+        --interpretation "ACME" \
         --scenario 2 \
         --n_runs 40 \
         --pre_process
