@@ -1,10 +1,14 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 
 struct LeafData
 {
     // Define the fields of LeafData here
+    double *cumul_normals;
+    double *cumul_importance;
+    double corrected_depth;
 };
 
 struct Node
@@ -20,7 +24,7 @@ struct Node
 
 /**
  * @brief Dot product between vector a of shape (shape0, shape1) and vector b of shape (shape1,)
-*/
+ */
 void dot_broadcast(double *a, double *b, int shape0, int shape1, double *res)
 {
     // #pragma omp parallel for reduction(+ : result)
@@ -86,6 +90,11 @@ void get_leaf_ids(double *dataset,
     }
 }
 
+/**
+ * @brief Correction factor for the anomaly score computation
+ *
+ * @param n The number of samples in the current node
+ */
 double c_factor(int n)
 {
     if (n <= 1)
@@ -94,4 +103,69 @@ double c_factor(int n)
     }
     double d_n = (double)n;
     return 2.0 * (log(d_n - 1) + 0.5772156649) - (2.0 * (d_n - 1) / d_n);
+}
+
+/**
+ * @brief Allocate memory for the leaf data and write it to the node
+ *
+ * @param node Pointer to the node to write the leaf data to
+ */
+void save_leaf_data(struct Node *node,
+                    double corrected_depth,
+                    double *cumul_normals,
+                    double *cumul_importance,
+                    int vec_len)
+{
+    node->is_leaf = true;
+    node->leaf_data = (struct LeafData *)malloc(sizeof(struct LeafData));
+    node->leaf_data->corrected_depth = corrected_depth;
+
+    // Allocate memory for the cumul_normals
+    node->leaf_data->cumul_normals = (double *)malloc(vec_len * sizeof(double));
+    // Allocate memory for the cumul_importance
+    node->leaf_data->cumul_importance = (double *)malloc(vec_len * sizeof(double));
+    for (int i = 0; i < vec_len; i++)
+    {
+        node->leaf_data->cumul_normals[i] = cumul_normals[i];
+        node->leaf_data->cumul_importance[i] = cumul_importance[i];
+    }
+}
+
+/**
+ * @brief Retrieve the corrected depths of the leaf nodes and store
+ * them in the corrected_depths array. Access only the given leaf ids.
+ */
+void get_corrected_depths(struct Node **nodes,
+                          int num_nodes,
+                          double *corrected_depths,
+                          int *leaf_ids,
+                          int num_leaf_ids)
+{
+    for (int i = 0; i < num_leaf_ids; i++)
+    {
+        struct Node *node = nodes[leaf_ids[i]];
+        corrected_depths[i] = node->leaf_data->corrected_depth;
+    }
+}
+
+// memory expensive techjnique
+void save_train_data(struct Node **nodes,
+                     int num_nodes,
+                     double *corrected_depths,
+                     double *cumul_importances,
+                     double *cumul_normals,
+                     int vec_len)
+{
+    for (int i = 0; i < num_nodes; i++)
+    {
+        if (nodes[i]->is_leaf)
+        {
+            corrected_depths[i] = nodes[i]->leaf_data->corrected_depth;
+            for (int j = 0; j < vec_len; j++)
+            {
+                cumul_importances[i*vec_len + j] = nodes[i]->leaf_data->cumul_importance[j];
+                cumul_normals[i*vec_len + j] = nodes[i]->leaf_data->cumul_normals[j];
+            }
+        }
+    }
 }

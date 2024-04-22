@@ -8,7 +8,7 @@ class LeafData(c.Structure):
     """
 
     _fields_ = [
-        ("cumul_normals", c.c_double),
+        ("cumul_normals", c.POINTER(c.c_double)),
         ("cumul_importance", c.POINTER(c.c_double)),
         ("corrected_depth", c.c_double),
     ]
@@ -103,5 +103,87 @@ c_c_factor = lib.c_factor
 c_c_factor.argtypes = [c.c_int]
 c_c_factor.restype = c.c_double
 
+
 def c_factor(n: int) -> float:
     return c_c_factor(n)
+
+
+# -- C SAVE_LEAF_DATA ---------------------------------------
+c_save_leaf_data = lib.save_leaf_data
+c_save_leaf_data.argtypes = [
+    c.POINTER(Node),
+    c.c_double,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_uint,
+]
+
+
+def save_leaf_data(node, corrected_depth, cumul_normals, cumul_importance):
+    c_save_leaf_data(
+        node, corrected_depth, cumul_normals, cumul_importance, len(cumul_normals)
+    )
+
+
+# -- C GET_CORRECTED_DEPTH ----------------------------------
+c_get_corrected_depths = lib.get_corrected_depths
+c_get_corrected_depths.argtypes = [
+    c.POINTER(c.POINTER(Node)),
+    c.c_int,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_int,
+]
+c_get_corrected_depths.restype = None
+
+
+def get_corrected_depths(nodes, ids, num_nodes):
+    """
+    Get the corrected depth of the nodes.
+    """
+    corrected_depth = np.zeros(len(ids), dtype=np.float64)
+    c_get_corrected_depths(nodes, num_nodes, corrected_depth, ids, len(ids))
+    return corrected_depth
+
+
+# -- C SAVE_TRAIN_DATA --------------------------------------
+# memory expensive technique
+c_save_train_data = lib.save_train_data
+c_save_train_data.argtypes = [
+    c.POINTER(c.POINTER(Node)),  # **nodes
+    c.c_int,  # num_nodes
+    np.ctypeslib.ndpointer(
+        dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"
+    ),  # *corrected_depths
+    np.ctypeslib.ndpointer(
+        dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"
+    ),  # **cumul_importance
+    np.ctypeslib.ndpointer(
+        dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"
+    ),  # **cumul_normals
+    c.c_int,  # vec_len
+]
+c_save_train_data.restype = None
+
+
+def save_train_data(nodes, d):
+    num_nodes = len(nodes)
+
+    corrected_depths = np.zeros(num_nodes, dtype=np.float64)
+    cumul_importances = np.zeros((num_nodes * d), dtype=np.float64)
+    cumul_normals = np.zeros((num_nodes * d), dtype=np.float64)
+
+    c_save_train_data(
+        nodes,
+        num_nodes,
+        corrected_depths,
+        cumul_importances,
+        cumul_normals,
+        d,
+    )
+
+    return (
+        corrected_depths,
+        cumul_importances.reshape((num_nodes, d)),
+        cumul_normals.reshape((num_nodes, d)),
+    )

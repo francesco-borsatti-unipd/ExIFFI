@@ -15,11 +15,13 @@ sys.path.append(p)
 
 from c_functions.c_signatures import (
     Node,
-    LeafData,
     dot_broadcast,
     copy_alloc,
     get_leaf_ids,
-    c_factor
+    c_factor,
+    get_corrected_depths,
+    save_leaf_data,
+    save_train_data,
 )
 
 
@@ -74,24 +76,6 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     return vec / np.linalg.norm(vec)
 
 
-tree_spec = [
-    ("plus", boolean),
-    ("locked_dims", int64),
-    ("max_depth", int64),
-    ("min_sample", int64),
-    ("n", int64),
-    ("d", int64),
-    ("max_nodes", int64),
-    ("corrected_depth", float64[:]),
-    ("cumul_importance", float64[:, :]),
-    ("eta", float64),
-]
-
-
-nodes: List[Node] = []
-
-
-# @jitclass(tree_spec)
 class ExtendedTree:
     """
     Class that represents an Isolation Tree in the Extended Isolation Forest model.
@@ -137,12 +121,6 @@ class ExtendedTree:
         self.eta = eta
         self.num_nodes = 0
 
-        self.corrected_depth = np.zeros(max_nodes, dtype=np.float64)
-        self.cumul_importance = np.zeros((max_nodes, d), dtype=np.float64)
-        self.cumul_normals = np.zeros((max_nodes, d), dtype=np.float64)
-
-        # self.nodes = np.array([], dtype=c.POINTER(Node))
-
     def fit(self, X: np.ndarray) -> None:
         """
         Fit the model to the dataset.
@@ -154,7 +132,7 @@ class ExtendedTree:
             The method fits the model and does not return any value.
         """
         self.extend_tree(node_id=0, X=X, depth=0)
-        self.corrected_depth = self.corrected_depth / c_factor(len(X))
+        self.corrected_depths = self.corrected_depths / c_factor(len(X))
 
     def extend_tree(self, node_id: int, X: npt.NDArray, depth: int) -> None:
         """
@@ -195,15 +173,13 @@ class ExtendedTree:
 
             if node_size <= self.min_sample or depth >= self.max_depth:
                 # reached a leaf node
-                self.corrected_depth[node.id] = c_factor(node_size) + depth + 1
-                self.cumul_normals[node.id] = cumul_normals
-                self.cumul_importance[node.id] = cumul_importance
-
                 node.is_leaf = True  # C
-
-                # node.leaf_data.corrected_depth = self.corrected_depth[node.id]
-                # node.leaf_data.cumul_normals = cumul_normals
-                # node.leaf_data.cumul_importance = cumul_importance
+                save_leaf_data(
+                    node,
+                    c_factor(node_size) + depth + 1,
+                    cumul_normals,
+                    cumul_importance,
+                )  # C
 
                 return
             else:
@@ -285,6 +261,12 @@ class ExtendedTree:
         create_split(
             root_node, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1])
         )
+        # this is slower, but saves a lot of memory
+        self.nodes = (c.POINTER(Node) * self.num_nodes)(*self.nodes[: self.num_nodes])
+
+        self.corrected_depths, self.cumul_importances, self.cumul_normals = (
+            save_train_data(self.nodes, self.d)
+        )
 
     def leaf_ids(self, X: np.ndarray) -> np.ndarray:
         """
@@ -327,7 +309,7 @@ class ExtendedTree:
         Returns:
             Anomaly score for each data point in the dataset.
         """
-        return self.corrected_depth[ids]
+        return self.corrected_depths[ids]
 
     def importances(self, ids: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -340,7 +322,7 @@ class ExtendedTree:
             Importances of the features for the given leaf node ids and the normal vectors.
         """
 
-        return self.cumul_importance[ids], self.cumul_normals[ids]
+        return self.cumul_importances[ids], self.cumul_normals[ids]
 
 
 class ExtendedIsolationForest:
