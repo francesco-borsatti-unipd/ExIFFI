@@ -6,6 +6,8 @@ cwd = os.getcwd()
 #os.chdir('/home/davidefrizzo/Desktop/PHD/ExIFFI/experiments')
 sys.path.append("..")
 from collections import namedtuple
+from append_to_path import append_dirname
+append_dirname("ExIFFI_Industrial_Test")
 
 from utils_reboot.experiments import *
 from utils_reboot.datasets import *
@@ -13,7 +15,7 @@ from utils_reboot.plots import *
 from utils_reboot.utils import *
 
 
-from model_reboot.EIF_reboot import ExtendedIsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest
 import argparse
 
 # Create the argument parser
@@ -37,7 +39,9 @@ parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
 parser.add_argument('--rotation',action='store_true', help='If set, rotate the xticks labels by 45 degrees in the feature selection plot (for ionosphere)')
 parser.add_argument('--compute_random',action='store_true', help='If set, shows also the random precisions in the feature selection plot')
 parser.add_argument('--change_ylim',action='store_true', help='If set, increase the ylim from 1 to 1.1 (for breastw)')
+parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 parser.add_argument('--change_box_loc', default=0.9, help='If set, change y coordinate of box_loc (for breastw)')
+parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
 
 # Parse the arguments
 args = parser.parse_args()
@@ -61,14 +65,20 @@ rotation = args.rotation
 compute_random = args.compute_random
 change_ylim = args.change_ylim 
 change_box_loc=args.change_box_loc
+downsample = args.downsample
+eta = args.eta
 
 
-dataset = Dataset(dataset_name, path = dataset_path)
+dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples (i.e. diabetes shuttle and moodify)
-if dataset.shape[0]>7500:
+if dataset.shape[0]>7500 and downsample:
     dataset.downsample(max_samples=7500)
+
+# If a dataset has lables (all the datasets except piade), the contamination is set to dataset.perc_outliers
+if dataset.perc_outliers != 0:
+    contamination = dataset.perc_outliers
 
 if scenario==2:
     #dataset.split_dataset(train_size=0.8,contamination=0)
@@ -91,7 +101,7 @@ else:
 
 assert model_interpretation in ["IF", "EIF", "EIF+"], "Model for Feature Order not recognized"
 assert model in ["IF","EIF", "EIF+"], "Evaluation Model not recognized"
-assert interpretation in ["EXIFFI+","EXIFFI", "DIFFI", "RandomForest"], "Interpretation not recognized"
+assert interpretation in ["EXIFFI+","EXIFFI", "DIFFI", "RandomForest", "KernelSHAP", "ACME"], "Interpretation not recognized"
 
 if interpretation == "DIFFI":
     assert model_interpretation=="IF", "DIFFI can only be used with the IF model"
@@ -160,15 +170,27 @@ if not os.path.exists(path_experiment_model_interpretation_scenario):
 path_experiment_model_interpretation_random_scenario = path_experiment_model_interpretation_random + "/scenario_"+str(scenario)
 if not os.path.exists(path_experiment_model_interpretation_random_scenario):
     os.makedirs(path_experiment_model_interpretation_random_scenario)
-    
-path_experiment_feats = path_experiments + "/global_importances/" + model_interpretation + "/" + interpretation + "/scenario_" + str(scenario)
-if not os.path.exists(path_experiment_feats):
-    os.makedirs(path_experiment_feats) 
+
+# Old path from ExIFFI paper 
+# path_experiment_feats = path_experiments + "/global_importances/" + model_interpretation + "/" + interpretation + "/scenario_" + str(scenario)
+# if not os.path.exists(path_experiment_feats):
+#     os.makedirs(path_experiment_feats) 
+
+# New path for Industrial ExIFFI paper
+if pre_process:
+    path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}_pre_process/imp_mat/scenario_{str(scenario)}"
+    if not os.path.exists(path_experiment_feats):
+        os.makedirs(path_experiment_feats) 
+else:
+    path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}/imp_mat/scenario_{str(scenario)}"
+    if not os.path.exists(path_experiment_feats):
+        os.makedirs(path_experiment_feats) 
 
 # feature selection → direct and inverse feature selection
 most_recent_file = get_most_recent_file(path_experiment_feats)
-matrix = open_element(most_recent_file,filetype="npz")
-feat_order = np.argsort(matrix.mean(axis=0))
+matrix = open_element(most_recent_file,filetype="csv.gz").values
+#import ipdb; ipdb.set_trace()
+feat_order = np.argsort(matrix.mean(axis=0))[-15:]
 Precisions = namedtuple("Precisions",["direct","inverse","dataset","model","value"])
 direct = feature_selection(I, dataset, feat_order, 10, inverse=False, random=False, scenario=scenario)
 inverse = feature_selection(I, dataset, feat_order, 10, inverse=True, random=False, scenario=scenario)
@@ -180,8 +202,8 @@ save_fs_prec(data, path_experiment_model_interpretation_scenario)
 # random feature selection
 if compute_random:
     Precisions_random = namedtuple("Precisions_random",["random","dataset","model"])
-    random = feature_selection(I, dataset, feat_order, 10, inverse=True, random=True, scenario=scenario)
-    data_random = Precisions_random(random, dataset.name, model)
+    random_fs = feature_selection(I, dataset, feat_order, 10, inverse=True, random=True, scenario=scenario)
+    data_random = Precisions_random(random_fs, dataset.name, model)
     save_fs_prec_random(data_random, path_experiment_model_interpretation_random_scenario)
 
 #plot feature selection

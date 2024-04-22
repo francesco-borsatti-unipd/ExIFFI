@@ -3,6 +3,9 @@ from typing import Type,Union
 import sys
 import os
 
+from append_to_path import append_dirname
+append_dirname("ExIFFI_Industrial_Test")
+
 realpath = os.path.realpath(__file__) # true path of this script
 realpath = os.path.dirname(realpath) # go up one dir
 realpath = os.path.dirname(realpath) # go up one dir
@@ -13,18 +16,23 @@ import numpy.typing as npt
 from tqdm import tqdm,trange
 import copy
 
-from model_reboot.EIF_reboot import ExtendedIsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest
 from model_reboot.interpretability_module import *
 from utils_reboot.datasets import Dataset
 from utils_reboot.utils import save_element,open_element
 import sklearn
+import shap
 from sklearn.ensemble import IsolationForest
 from sklearn.ensemble import RandomForestRegressor
+from ACME.ACME import ACME 
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, average_precision_score, balanced_accuracy_score
 
 import pickle
 import time
 import pandas as pd
+
+import warnings
+warnings.filterwarnings('ignore')
 
 cwd = os.getcwd()
 #import ipdb; ipdb.set_trace()
@@ -122,7 +130,7 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
     print('#'*50)
 
     if interpretation=="DIFFI":
-        fi,_=local_diffi(I,anomalies)
+        fi,_=local_diffi_batch(model=I,X=anomalies)
     elif interpretation=="EXIFFI" or interpretation=='EXIFFI+' or interpretation=='C_EXIFFI+':
         fi=I.local_importances(anomalies)
 
@@ -135,6 +143,219 @@ def compute_local_importances(I: Type[ExtendedIsolationForest],
 
     return fi
 
+# Score function for EIF/EIF+ ACME 
+def EIF_score_function(model,data):
+    return model.predict(data)
+
+# Score function for IF ACME
+def IF_score_function(model,data):
+    return 0.5 * (- model.decision_function(data) + 1)
+
+def compute_imp_time_ACME(I: Type[ExtendedIsolationForest],
+                                   dataset: Type[Dataset],
+                                   p = 0.1,
+                                   n_quantiles:int=70,
+                                   fit_model = True) -> np.array: 
+    
+    """
+    Compute the local feature importances using the ACME interpretation model on a specific dataset.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        n_quantiles (int): Number of quantile to use for the ACME explanations. Defaults to 70. 
+        fit_model (bool): Whether to fit the model on the dataset. Defaults to True.
+
+    Returns:
+        The local feature importances vector of all the points in the input dataset
+
+    """
+
+    if fit_model:
+        I.fit(dataset.X_train)
+
+    y_pred=I._predict(dataset.X_test,p).astype(int)
+    anomalies=dataset.X_test[np.where(y_pred==1)[0]]
+
+    print('Computing ACME Local Importances (for a single anomaly)')
+    print('#'*50)
+
+    data_acme=pd.DataFrame(dataset.X_test,columns=dataset.feature_names)
+    data_acme_anomalies=pd.DataFrame(anomalies,columns=dataset.feature_names)
+    data_acme["Score"]=EIF_score_function(I,dataset.X_test)
+    data_acme_anomalies["Score"]=EIF_score_function(I,anomalies)
+
+    acme_exp = ACME(I, "Score", dataset.feature_names, K=n_quantiles, task = "ad", score_function=EIF_score_function)
+    acme_exp = acme_exp.explain(data_acme, True)
+
+    start=time.time()
+    acme_loc = acme_exp.explain_local(data_acme_anomalies.iloc[np.random.randint(0,len(data_acme_anomalies),1)[0]])
+    acme_loc.feature_importance(local=True)
+    acme_time = time.time()-start
+
+    print('Local Importances computed')
+
+    #import ipdb;ipdb.set_trace()
+
+    return acme_time
+
+def compute_local_importances_ACME(I: Type[ExtendedIsolationForest],
+                                   dataset: Type[Dataset],
+                                   model:str = 'EIF+',
+                                   p = 0.1,
+                                   n_quantiles:int=70,
+                                   fit_model = True) -> np.array: 
+    
+    """
+    Compute the local feature importances using the ACME interpretation model on a specific dataset.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        model (str): The name of the model to explain with ACME. Defaults to 'EIF+'.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        n_quantiles (int): Number of quantile to use for the ACME explanations. Defaults to 70. 
+        fit_model (bool): Whether to fit the model on the dataset. Defaults to True.
+
+    Returns:
+        The local feature importances vector of all the points in the input dataset
+
+    """
+
+    if fit_model:
+        I.fit(dataset.X_train)
+
+    if model == 'IF':
+        y_pred=I.predict(dataset.X_test)
+        y_pred=np.vectorize(lambda x: 1 if x == -1 else 0)(y_pred)
+        anomalies=dataset.X_test[np.where(y_pred==1)[0]]
+        score_function=IF_score_function
+    else:
+        y_pred=I._predict(dataset.X_test,p).astype(int)
+        anomalies=dataset.X_test[np.where(y_pred==1)[0]]
+        score_function=EIF_score_function
+
+    data_acme=pd.DataFrame(dataset.X_test,columns=dataset.feature_names)
+    data_acme_anomalies=pd.DataFrame(anomalies,columns=dataset.feature_names)
+    data_acme["Score"]=score_function(I,dataset.X_test)
+    data_acme_anomalies["Score"]=score_function(I,anomalies)
+    acme_exp = ACME(I, "Score", dataset.feature_names, K=n_quantiles, task = "ad", score_function=score_function)
+    acme_exp = acme_exp.explain(data_acme, True)
+
+    imp_mat = pd.DataFrame(columns = dataset.feature_names)
+
+    for i in tqdm(data_acme_anomalies.index.tolist(),desc='Computing ACME Local Importances on anomalies'):
+            acme_loc = acme_exp.explain_local(data_acme_anomalies.loc[i])
+            feature_table=acme_loc.feature_importance(local=True,weights={'delta':0.3, 'change':0.3, 'distance':0.2, 'ratio':0.2})
+            local_imp = feature_table['importance'].reindex(dataset.feature_names)
+            local_imp_values = local_imp.values
+            imp_mat.loc[i] = local_imp_values
+
+    print('Local Importances computed')
+
+    #import ipdb;ipdb.set_trace()
+
+    return imp_mat
+
+
+def compute_imp_time_kernelSHAP(I: Type[ExtendedIsolationForest],
+                                 dataset: Type[Dataset],
+                                 p: float = 0.1,
+                                 background:float=0.1,
+                                 pre_process:float=False,
+                                 scenario:int=2) -> float: 
+    
+    """
+    Compute the time to compute the local feature importances for an anomalous point using the KernelSHAP method.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        background (float): The percentage of the dataset to use as background. Defaults to 0.1.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        pre_process (bool): Whether to pre process the dataset after computing the downsampled version according to the background. Defaults to False.
+        scenario (int): The scenario of the experiment. Defaults to 2.
+    
+    Returns:
+        The time to compute the local feature importances for a single anomaly 
+    """
+
+    I.fit(dataset.X_train)
+
+    y_pred=I._predict(dataset.X_test,p).astype(int)
+    anomalies=dataset.X_test[np.where(y_pred==1)[0]]
+    anomaly=anomalies[np.random.randint(0,anomalies.shape[0],1)[0],:]
+
+    print('Computing ACME Local Importances (for a single anomaly)')
+    print('#'*50)
+
+    # Downsample the dataset to the background size
+    dataset.downsample(max_samples=int(background*dataset.X.shape[0]))
+
+    dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
+
+    if pre_process and scenario==2:
+        dataset.initialize_test()
+        dataset.pre_process()
+    elif scenario==2 and not pre_process:
+        dataset.initialize_test()
+    elif scenario==1 and not pre_process:
+        dataset.initialize_train_test()
+
+    def EIF_score_function_shap(data):
+        return I.predict(data)
+
+    start_time = time.time()
+    shap_explainer = shap.KernelExplainer(EIF_score_function_shap, dataset.X_test)
+    shap_values = shap_explainer.shap_values(anomaly)
+    shap_time = time.time()-start_time
+
+    return shap_time
+
+
+def compute_local_imp_time(I: Type[ExtendedIsolationForest],
+                           dataset: Type[Dataset],
+                           anomalies: npt.NDArray,
+                           p: float = 0.1,
+                           n_quantiles: int = 70,
+                           interpretation: str = "EXIFFI+",
+                           n_runs: int = 10) -> float:
+    
+    """
+    Compute the time to compute the local feature importances for a number of runs.
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        anomalies (npt.NDArray): The anomalies in the dataset.
+        interpretation (str): Name of the interpretation method to be used. Defaults to "EXIFFI+".
+        n_runs (int): The number of runs. Defaults to 10.
+
+    Returns:
+        The average time to compute the local feature importances for single anomalies 
+    """
+
+    times = []
+    if interpretation=="DIFFI":
+        for i in trange(n_runs,desc='DIFFI Local Importances runs'):
+            anomaly=anomalies[np.random.randint(0,anomalies.shape[0],1)[0],:]
+            start_time = time.time()
+            importances,_=local_diffi(I,anomaly)
+            times.append(time.time()-start_time)
+    elif interpretation=="EXIFFI" or interpretation=='EXIFFI+' or interpretation=='C_EXIFFI+':
+        for i in trange(n_runs,desc='EXIFFI Local Importances runs'):
+            anomaly=anomalies[np.random.randint(0,anomalies.shape[0],1)[0],:].reshape(1,-1)
+            start_time = time.time()
+            importances=I.local_importances(anomaly)
+            times.append(time.time()-start_time)
+    elif interpretation=="ACME":
+        for i in trange(n_runs,desc='ACME Local Importances runs'):
+            importances_time=compute_imp_time_ACME(I,dataset,p=p,n_quantiles=n_quantiles)
+            times.append(importances_time)
+
+    return np.mean(times)
+
+    
 def compute_bars(dataset: Type[Dataset],
                  importances_file: str,
                  filetype: str = 'npz',
@@ -360,8 +581,8 @@ def feature_selection(I: Type[ExtendedIsolationForest],
         """
 
         dataset_shrinking = copy.deepcopy(dataset)
-        d = dataset.X.shape[1]
-        precisions = np.zeros(shape=(len(importances_indexes),n_runs))
+        d = len(importances_indexes)
+        precisions = np.zeros(shape=(d,n_runs))
         for number_of_features_dropped in tqdm(range(len(importances_indexes))):
             runs = np.zeros(n_runs)
             for run in range(n_runs):
@@ -377,6 +598,8 @@ def feature_selection(I: Type[ExtendedIsolationForest],
                 else:
                     dataset_shrinking.initialize_train()
                     dataset_shrinking.initialize_test()
+
+                #import ipdb; ipdb.set_trace()
 
                 try:
                     if dataset.X.shape[1] == dataset_shrinking.X.shape[1]:
