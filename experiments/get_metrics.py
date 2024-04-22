@@ -8,7 +8,7 @@ import pickle
 from utils_reboot.utils import *
 from utils_reboot.datasets import *
 import argparse
-from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest,IsolationForest
 from sklearn.metrics import precision_score, recall_score, average_precision_score, roc_auc_score
 
 
@@ -21,7 +21,7 @@ parser.add_argument('--dataset_path', type=str, default='../data/real/', help='P
 parser.add_argument('--n_estimators', type=int, default=200, help='EIF parameter: n_estimators')
 parser.add_argument('--max_depth', type=str, default='auto', help='EIF parameter: max_depth')
 parser.add_argument('--max_samples', type=str, default='auto', help='EIF parameter: max_samples')
-parser.add_argument('--contamination', type=npt.NDArray, default=np.linspace(0.0,0.1,10), help='Global feature importances parameter: contamination')
+parser.add_argument('--contamination', type=float, default=0.1, help='Global feature importances parameter: contamination')
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: IF, EIF, EIF+')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
@@ -112,5 +112,8 @@ with open(filename, "rb") as file:
 print('#'*50)
 print(f'Fit time for {model} {dataset.name} scenario {str(scenario)}: {np.round(np.mean(dict_time["fit"][model][dataset.name]),3)}')
 print(f'Predict time for {model} {dataset.name} scenario {str(scenario)}: {np.round(np.mean(dict_time["predict"][model][dataset.name]),3)}')
-print(f'Importances time for {model} {dataset.name} scenario {str(scenario)}: {dict_time["importances"][interpretation][dataset.name]}')
+
+if interpretation in dict_time["importances"]:
+    print(f'Importances time for {model} {dataset.name} scenario {str(scenario)} for a single anomaly: {np.round(dict_time["importances"][interpretation][dataset.name][-1],3)}')
+
 print('#'*50)

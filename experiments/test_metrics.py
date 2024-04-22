@@ -12,9 +12,15 @@ from utils_reboot.datasets import *
 from utils_reboot.plots import *
 from utils_reboot.utils import *
 
-from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
+from model_reboot.interpretability_module import *
 from model_reboot.EIF_reboot import IsolationForest as EIF_IsolationForest
 import argparse
+
+import warnings
+# Ignore all warnings
+warnings.filterwarnings("ignore")
+
 
 # Create the argument parser
 parser = argparse.ArgumentParser(description='Test Performance Metrics')
@@ -24,9 +30,11 @@ parser.add_argument('--dataset_name', type=str, default='wine', help='Name of th
 parser.add_argument('--dataset_path', type=str, default='../data/real/', help='Path to the dataset')
 parser.add_argument('--n_estimators', type=int, default=100, help='EIF parameter: n_estimators')
 parser.add_argument('--max_depth', type=str, default='auto', help='EIF parameter: max_depth')
-parser.add_argument('--max_samples', type=str, default='auto', help='EIF parameter: max_samples')
+parser.add_argument('--max_samples', type=str, default=256, help='EIF parameter: max_samples')
 parser.add_argument('--contamination', type=float, default=0.1, help='Global feature importances parameter: contamination')
+parser.add_argument('--background', type=float, default=0.1, help='Background percentage for KernelSHAP interpretation')
 parser.add_argument('--n_runs', type=int, default=40, help='Global feature importances parameter: n_runs')
+parser.add_argument('--n_runs_imp', type=int, default=10, help='n_runs for the time importances experiment')
 parser.add_argument('--pre_process',type=bool, default=False, help='If set, preprocess the dataset')
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: IF, EIF, EIF+')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI, EXIFFI+, C_EXIFFI+]')
@@ -34,6 +42,7 @@ parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
 parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 parser.add_argument('--compute_GFI', type=bool, default=False, help='If set compute the Feature Importances')
 parser.add_argument('--compute_perf', action='store_true', help='If set compute the model performances')
+parser.add_argument('--n_quantiles', type=int, default=70, help='Number of quantiles to use in ACME interpretation')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -45,7 +54,9 @@ n_estimators = args.n_estimators
 max_depth = args.max_depth
 max_samples = args.max_samples
 contamination = args.contamination
+background = args.background
 n_runs = args.n_runs
+n_runs_imp = args.n_runs_imp
 pre_process = args.pre_process
 model = args.model
 interpretation = args.interpretation
@@ -53,6 +64,7 @@ scenario = args.scenario
 downsample = args.downsample
 compute_GFI = args.compute_GFI
 compute_perf = args.compute_perf
+n_quantiles = args.n_quantiles
 
 #import ipdb; ipdb.set_trace()
 
@@ -92,10 +104,12 @@ elif scenario==1 and not pre_process:
 
 assert model in ["IF","sklearn_IF","EIF","EIF+"], "Evaluation Model not recognized"
 
+assert interpretation in ["EXIFFI","EXIFFI+","DIFFI","KernelSHAP"], "Interpretation method not recognized"
+
 if model == "sklearn_IF":
     I = sklearn_IsolationForest(n_estimators=n_estimators, max_samples=max_samples)
 elif model == "IF":
-    I=EIF_IsolationForest(n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+    I=IsolationForest(n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 elif model == "EIF":
     I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 elif model == "EIF+":
@@ -126,6 +140,7 @@ print(f'Estimators: {n_estimators}')
 print(f'Contamination: {contamination}')
 print(f'Scenario: {scenario}')
 print(f'Number of runs: {n_runs}')
+print(f'Background: {background}') if interpretation == "KernelSHAP" else None
 print('#'*50)
 
 # Fit the model
@@ -141,6 +156,7 @@ except:
 start_time = time.time()
 score=I.predict(dataset.X_test)
 y_pred=I._predict(dataset.X_test,p=contamination)
+anomalies=dataset.X_test[np.where(y_pred==1)[0]]
 predict_time = time.time() - start_time
 try:
     dict_time["predict"][I.name].setdefault(dataset.name, []).append(predict_time)
@@ -149,17 +165,21 @@ except:
     dict_time["predict"].setdefault(I.name, {}).setdefault(dataset.name, []).append(predict_time)
 
 if compute_GFI:
-    print('Computing Feature Importances...')
-    print('#'*50)
-    anomalies=dataset.X_test[np.where(y_pred==1)[0]]
-    start_time = time.time()
-    importances=I.local_importances(anomalies)
-    importances_time = time.time() - start_time
-    try:
-        dict_time["importances"][interpretation].setdefault(dataset.name, []).append(importances_time)
-    except:
-        print('Model not recognized: creating a new key in the dict_time for the new model')
-        dict_time["importances"].setdefault(interpretation, {}).setdefault(dataset.name, []).append(importances_time)
+
+    if interpretation == "KernelSHAP":
+        importances_time=compute_imp_time_kernelSHAP(I=I,dataset=dataset,p=contamination,background=background,pre_process=pre_process)
+        try:
+            dict_time["importances"][interpretation][dataset.name].setdefault(f"background_{int(background*100)}", []).append(importances_time)
+        except:
+            print('Model not recognized: creating a new key in the dict_time for the new model')
+            dict_time["importances"].setdefault(interpretation, {}).setdefault(dataset.name, {}).setdefault(f"background_{int(background*100)}", []).append(importances_time)
+    else:
+        importances_time=compute_local_imp_time(I=I,dataset=dataset,anomalies=anomalies,p=contamination,n_quantiles=n_quantiles,interpretation=interpretation,n_runs=n_runs_imp)
+        try:
+            dict_time["importances"][interpretation].setdefault(dataset.name, []).append(importances_time)
+        except:
+            print('Model not recognized: creating a new key in the dict_time for the new model')
+            dict_time["importances"].setdefault(interpretation, {}).setdefault(dataset.name, []).append(importances_time)
 
 with open(filename, "wb") as file:
     pickle.dump(dict_time, file)
