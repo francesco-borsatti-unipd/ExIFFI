@@ -5,7 +5,6 @@ cwd = os.getcwd()
 sys.path.append("..")
 from collections import namedtuple
 from append_to_path import append_dirname
-
 append_dirname("ExIFFI_Industrial_Test")
 
 from utils_reboot.experiments import *
@@ -17,6 +16,7 @@ from utils_reboot.plots import *
 #from model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
 from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
 from sklearn.ensemble import IsolationForest as sklearn_IsolationForest
+from ACME.ACME import ACME 
 import argparse
 
 # Create the argument parser
@@ -36,12 +36,13 @@ parser.add_argument('--scenario', type=int, default=1, help='scenario for traini
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
 parser.add_argument('--n_runs', type=int, default=10, help='Number of runs of Local Feature importance computation')
 parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
+parser.add_argument('--n_quantiles', type=int, default=70, help='Number of quantiles to use in ACME interpretation')
 
 # Parse the arguments
 args = parser.parse_args()
 
-assert args.model in ["EIF+","C_EIF+","EIF"], "Model not recognized. Accepted values: ['EIF','EIF+','C_EIF+']"
-assert args.interpretation in ["EXIFFI","EXIFFI+", "C_EXIFFI+"], "Interpretation not recognized"
+assert args.model in ["EIF+","C_EIF+","EIF","IF"], "Model not recognized. Accepted values: ['EIF','EIF+','C_EIF+']"
+assert args.interpretation in ["EXIFFI","EXIFFI+", "ACME"], "Interpretation not recognized"
 if args.interpretation == "EXIFFI+":
     assert args.model=="EIF+", "EXIFFI+ can only be used with the EIF+ model"
 if args.interpretation == "EXIFFI":
@@ -63,6 +64,7 @@ scenario = args.scenario
 eta = args.eta
 n_runs = args.n_runs 
 downsample = args.downsample
+n_quantiles = args.n_quantiles
 
 # Load dataset
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
@@ -98,13 +100,17 @@ if model == "IF":
         I = IsolationForest(n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
     elif interpretation == "DIFFI" or interpretation == "RandomForest":
         I = sklearn_IsolationForest(n_estimators=n_estimators, max_samples=max_samples)
-elif model == "EIF+":
+    # Use the IsolationForest model used in the AcME-AD paper 
+    elif interpretation == "ACME":
+        I = sklearn_IsolationForest(n_estimators=200, max_samples=256, contamination=contamination, random_state=0, n_jobs=-1)
+elif model == "EIF+": 
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
 elif model == "EIF":
     I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
 # For the moment EIF+ and C_EIF+ are the same model, modify here when we have the C implementation of ExtendedIsolationForest
 elif model == "C_EIF+":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, eta=eta)
+
 
 os.chdir('../')
 cwd=os.getcwd()
@@ -184,11 +190,14 @@ if not os.path.exists(path_experiment_model_interpretation_labels_scenario):
     os.makedirs(path_experiment_model_interpretation_labels_scenario)
 
 #Compute local importances
-
-full_importances,labels = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, n_runs=n_runs)    
-save_element(labels, path_experiment_model_interpretation_labels_scenario, filetype="npz")
-save_element(full_importances, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
-
+if interpretation == "ACME":
+    imp_mat= compute_local_importances_ACME(I=I, dataset=dataset, model=model, p=contamination, n_quantiles=n_quantiles)
+    #import ipdb; ipdb.set_trace()
+    save_element(imp_mat, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
+else:
+    imp_mat,labels = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, n_runs=n_runs)    
+    save_element(labels, path_experiment_model_interpretation_labels_scenario, filetype="npz")
+    save_element(imp_mat, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
 
 # Compute bars and save it in path_experiment_model_interpretation_bars_scenario
 imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)

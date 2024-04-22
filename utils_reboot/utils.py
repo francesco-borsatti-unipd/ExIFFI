@@ -1,5 +1,6 @@
 import time
 from typing import Type,Union,Optional
+import numpy.typing as npt
 import pickle
 import numpy as np
 import pandas as pd
@@ -52,6 +53,26 @@ class sklearn_IsolationForest(IsolationForest):
 
         score=self.decision_function(X)
         return -1*score+0.5
+    
+    def _predict(self,
+                    X:np.array,
+                    p:float)->np.array:
+    
+        """
+        Method to predict the class labels based on the Anomaly Scores and the contamination factor `p`
+
+        Args:
+            X: Input dataset
+            p: Contamination factor
+
+        Returns:
+            Class labels (i.e. 0 for inliers and 1 for outliers)
+        """
+
+        An_score = self.predict(X)
+        y_hat = An_score > sorted(An_score,reverse=True)[int(p*len(An_score))]
+        return y_hat
+
 
 # class DIF(oldDIF):
 
