@@ -160,12 +160,8 @@ else:
     
 if not os.path.exists(path_experiment_model_interpretation_trees):
     os.makedirs(path_experiment_model_interpretation_trees)
-
-path_experiment_model_interpretation_cont = path_experiment_model_interpretation_trees + f"/cont_{int(contamination*100)}"
-if not os.path.exists(path_experiment_model_interpretation_cont):
-    os.makedirs(path_experiment_model_interpretation_cont)
     
-path_experiment_model_interpretation_imp_mat = path_experiment_model_interpretation_cont + "/imp_mat"
+path_experiment_model_interpretation_imp_mat = path_experiment_model_interpretation_trees + "/imp_mat"
 if not os.path.exists(path_experiment_model_interpretation_imp_mat):
     os.makedirs(path_experiment_model_interpretation_imp_mat)
 
@@ -173,7 +169,7 @@ path_experiment_model_interpretation_imp_mat_scenario = path_experiment_model_in
 if not os.path.exists(path_experiment_model_interpretation_imp_mat_scenario):
     os.makedirs(path_experiment_model_interpretation_imp_mat_scenario)
 
-path_experiment_model_interpretation_bars = path_experiment_model_interpretation_cont + "/bars"
+path_experiment_model_interpretation_bars = path_experiment_model_interpretation_trees + "/bars"
 if not os.path.exists(path_experiment_model_interpretation_bars):
     os.makedirs(path_experiment_model_interpretation_bars)
 
@@ -181,7 +177,7 @@ path_experiment_model_interpretation_bars_scenario = path_experiment_model_inter
 if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
     os.makedirs(path_experiment_model_interpretation_bars_scenario)
 
-path_experiment_model_interpretation_labels = path_experiment_model_interpretation_cont + "/labels"
+path_experiment_model_interpretation_labels = path_experiment_model_interpretation_trees + "/labels"
 if not os.path.exists(path_experiment_model_interpretation_labels):
     os.makedirs(path_experiment_model_interpretation_labels)
 
