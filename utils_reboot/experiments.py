@@ -224,10 +224,14 @@ def compute_local_importances_ACME(I: Type[ExtendedIsolationForest],
     """
 
     if fit_model:
-        I.fit(dataset.X_train)
+        if model == "IF":
+            I.fit(dataset.X_test)
+        else:
+            I.fit(dataset.X_train)
 
     if model == 'IF':
         y_pred=I.predict(dataset.X_test)
+        #import ipdb; ipdb.set_trace()
         y_pred=np.vectorize(lambda x: 1 if x == -1 else 0)(y_pred)
         anomalies=dataset.X_test[np.where(y_pred==1)[0]]
         score_function=IF_score_function
@@ -235,6 +239,8 @@ def compute_local_importances_ACME(I: Type[ExtendedIsolationForest],
         y_pred=I._predict(dataset.X_test,p).astype(int)
         anomalies=dataset.X_test[np.where(y_pred==1)[0]]
         score_function=EIF_score_function
+
+    import ipdb; ipdb.set_trace()
 
     data_acme=pd.DataFrame(dataset.X_test,columns=dataset.feature_names)
     data_acme_anomalies=pd.DataFrame(anomalies,columns=dataset.feature_names)
