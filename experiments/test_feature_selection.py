@@ -42,6 +42,7 @@ parser.add_argument('--change_ylim',action='store_true', help='If set, increase 
 parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 parser.add_argument('--change_box_loc', default=0.9, help='If set, change y coordinate of box_loc (for breastw)')
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
+parser.add_argument('--local_imp',type=bool,default=False, help='If set, use the overall local importances to perform feature selection (use it for ACME and KernelSHAP)')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -67,6 +68,7 @@ change_ylim = args.change_ylim
 change_box_loc=args.change_box_loc
 downsample = args.downsample
 eta = args.eta
+local_imp = args.local_imp
 
 
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
@@ -176,21 +178,30 @@ if not os.path.exists(path_experiment_model_interpretation_random_scenario):
 # if not os.path.exists(path_experiment_feats):
 #     os.makedirs(path_experiment_feats) 
 
-# New path for Industrial ExIFFI paper
-if pre_process:
-    path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}_pre_process/imp_mat/scenario_{str(scenario)}"
-    if not os.path.exists(path_experiment_feats):
-        os.makedirs(path_experiment_feats) 
+# Path if we use overall local importance features
+if local_imp:
+    if pre_process:
+        path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}_pre_process/imp_mat/scenario_{str(scenario)}"
+        if not os.path.exists(path_experiment_feats):
+            os.makedirs(path_experiment_feats) 
+    else:
+        path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}/imp_mat/scenario_{str(scenario)}"
+        if not os.path.exists(path_experiment_feats):
+            os.makedirs(path_experiment_feats) 
 else:
-    path_experiment_feats = path_experiments + "/local_importances/" + model_interpretation + "/" + interpretation + f"/eta_{eta}/trees_{n_estimators}/imp_mat/scenario_{str(scenario)}"
+    path_experiment_feats = path_experiments + "/global_importances/" + model_interpretation + "/" + interpretation + f"/imp_mat/scenario_{str(scenario)}"
     if not os.path.exists(path_experiment_feats):
         os.makedirs(path_experiment_feats) 
+
+#import ipdb; ipdb.set_trace()
 
 # feature selection → direct and inverse feature selection
 most_recent_file = get_most_recent_file(path_experiment_feats)
 matrix = open_element(most_recent_file,filetype="csv.gz").values
-#import ipdb; ipdb.set_trace()
-feat_order = np.argsort(matrix.mean(axis=0))[-15:]
+# Only first 15 features
+#feat_order = np.argsort(matrix.mean(axis=0))[-15:]
+# All features 
+feat_order = np.argsort(matrix.mean(axis=0))
 Precisions = namedtuple("Precisions",["direct","inverse","dataset","model","value"])
 direct = feature_selection(I, dataset, feat_order, 10, inverse=False, random=False, scenario=scenario)
 inverse = feature_selection(I, dataset, feat_order, 10, inverse=True, random=False, scenario=scenario)
