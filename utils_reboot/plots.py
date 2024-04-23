@@ -300,10 +300,14 @@ def plot_feature_selection(
     plt.ylabel("Average Precision",fontsize = 20)
     #plt.title("Feature selection "+model, fontsize = 18)
 
-    if rotation:
-        plt.xticks(range(dim),range(dim,0,-1),rotation=45)
-    else:
-        plt.xticks(range(dim),range(dim,0,-1))    
+    if precision.direct.shape[0] > 30:
+        # Put the xticks every 5 positions: so at 0, 5, 10, 15, 20, 25, 30
+        plt.xticks(range(dim,0,-5),range(0,dim,5),)
+    else:   
+        if rotation:
+            plt.xticks(range(dim),range(dim,0,-1),rotation=45)
+        else:
+            plt.xticks(range(dim),range(dim,0,-1))    
     
     if box_loc is None:
        box_loc = (len(precision.direct)/2,change_box_loc)
