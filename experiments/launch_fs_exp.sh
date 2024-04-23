@@ -31,6 +31,5 @@ python $SCRIPT_PATH \
     --model_interpretation "EIF+" \
     --interpretation "EXIFFI+" \
     --scenario 2 \
-    --pre_process \
-    --compute_random 
+    --pre_process 
 

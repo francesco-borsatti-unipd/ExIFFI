@@ -14,8 +14,7 @@ python $SCRIPT_PATH \
         --dataset_name $DATASETS \
         --interpretation "ACME" \
         --scenario 2 \
-        --n_runs 40 \
-        --pre_process
+        --n_runs 40 
 
 # To pre_process the data, add the following line:
 # --pre_process \
