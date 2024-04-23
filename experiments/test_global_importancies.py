@@ -3,6 +3,8 @@ import os
 cwd = os.getcwd()
 sys.path.append("..")
 from collections import namedtuple
+from append_to_path import append_dirname
+append_dirname("ExIFFI_Industrial_Test")
 
 from utils_reboot.experiments import *
 from utils_reboot.utils import *
@@ -10,7 +12,7 @@ from utils_reboot.datasets import *
 from utils_reboot.plots import *
 
 
-from model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
+from ExIFFI_C.model_reboot.EIF_reboot import ExtendedIsolationForest, IsolationForest
 from sklearn.ensemble import IsolationForest as sklearn_IsolationForest
 import argparse
 
@@ -29,6 +31,7 @@ parser.add_argument('--pre_process',action='store_true', help='If set, preproces
 parser.add_argument('--model', type=str, default="EIF", help='Model to use: [EIF+, C_EIF+]')
 parser.add_argument('--interpretation', type=str, default="EXIFFI", help='Interpretation method to use: [EXIFFI+, C_EXIFFI+]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
+parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -44,24 +47,27 @@ if args.interpretation == "C_EXIFFI+":
 # Access the arguments
 dataset_name = args.dataset_name
 dataset_path = args.dataset_path
-
 n_estimators = args.n_estimators
 max_depth = args.max_depth
 max_samples = args.max_samples
 contamination = args.contamination
 n_runs = args.n_runs
-
 pre_process = args.pre_process
 model = args.model
 interpretation = args.interpretation
 scenario = args.scenario
+downsample = args.downsample
 
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
 
 # Downsample datasets with more than 7500 samples
-if dataset.shape[0] > 7500:
+if dataset.shape[0] > 7500 and downsample:
     dataset.downsample(max_samples=7500)
+
+# If a dataset has lables (all the datasets except piade), the contamination is set to dataset.perc_outliers
+if dataset.perc_outliers != 0:
+    contamination = dataset.perc_outliers
 
 if scenario==2:
     dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
