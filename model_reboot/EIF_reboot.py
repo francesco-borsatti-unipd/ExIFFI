@@ -5,8 +5,8 @@ import os, sys, ctypes as c
 from typing import List, Union
 
 import numpy as np, numpy.typing as npt
-from numba import njit, float64, int64, boolean
-from numba.typed import List
+# from numba import njit, float64, int64, boolean
+# from numba.typed import List
 import ipdb
 
 # get the current script dirpath
@@ -16,7 +16,6 @@ sys.path.append(p)
 from c_functions.c_signatures import (
     Node,
     dot_broadcast,
-    copy_alloc,
     get_leaf_ids,
     c_factor,
     save_leaf_data,
@@ -27,7 +26,7 @@ from c_functions.c_signatures import (
 )
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     """
     Generate a random unitary vector in the unit ball with a maximum number of dimensions.
@@ -53,7 +52,7 @@ def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     return vec / np.linalg.norm(vec)
 
 
-@njit(cache=True)
+# @njit(cache=True)
 def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     """
     Generate a random unitary vector in the unit ball with a maximum number of dimensions.
