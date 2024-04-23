@@ -187,3 +187,70 @@ def save_train_data(nodes, d):
         cumul_importances.reshape((num_nodes, d)),
         cumul_normals.reshape((num_nodes, d)),
     )
+
+
+# -- C ALLOC_CHILD_NODES ------------------------------------
+c_alloc_child_nodes = lib.alloc_child_nodes
+c_alloc_child_nodes.argtypes = [
+    c.POINTER(c.POINTER(Node)),
+    c.c_int,
+    c.c_int,
+    c.POINTER(Node),
+]
+c_alloc_child_nodes.restype = None
+
+
+def alloc_child_nodes(nodes, max_nodes, num_nodes, current_node):
+    c_alloc_child_nodes(nodes, max_nodes, num_nodes, current_node)
+
+
+# -- C SAVE_NORMAL_VECTOR -----------------------------------
+c_save_normal_vector = lib.save_normal_vector
+c_save_normal_vector.argtypes = [
+    c.POINTER(Node),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_int,
+]
+c_save_normal_vector.restype = None
+
+
+def save_normal_vector(node, normal):
+    c_save_normal_vector(node, normal, len(normal))
+
+
+# -- C UPDATE_IMPORTANCES_AND_NORMALS -----------------------
+c_update_importances_and_normals = lib.update_importances_and_normals
+c_update_importances_and_normals.argtypes = [
+    c.POINTER(Node),
+    c.c_int,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.bool_, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_int,
+]
+c_update_importances_and_normals.restype = None
+
+
+def update_importances_and_normals(
+    node,
+    d,
+    cumul_normal,
+    cumul_importance,
+    mask,
+):
+    
+    l_cumul_importance = np.zeros(d)
+    r_cumul_importance = np.zeros(d)
+    c_update_importances_and_normals(
+        node,
+        d,
+        cumul_normal,
+        cumul_importance,
+        l_cumul_importance,
+        r_cumul_importance,
+        mask,
+        mask.shape[0],
+    )
+    return l_cumul_importance, r_cumul_importance

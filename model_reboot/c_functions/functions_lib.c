@@ -27,7 +27,6 @@ struct Node
  */
 void dot_broadcast(double *a, double *b, int shape0, int shape1, double *res)
 {
-    // #pragma omp parallel for reduction(+ : result)
     for (int i = 0; i < shape0; i++)
     {
         res[i] = 0;
@@ -163,9 +162,100 @@ void save_train_data(struct Node **nodes,
             corrected_depths[i] = nodes[i]->leaf_data->corrected_depth;
             for (int j = 0; j < vec_len; j++)
             {
-                cumul_importances[i*vec_len + j] = nodes[i]->leaf_data->cumul_importance[j];
-                cumul_normals[i*vec_len + j] = nodes[i]->leaf_data->cumul_normals[j];
+                cumul_importances[i * vec_len + j] = nodes[i]->leaf_data->cumul_importance[j];
+                cumul_normals[i * vec_len + j] = nodes[i]->leaf_data->cumul_normals[j];
             }
         }
+    }
+}
+
+/**
+ */
+void alloc_child_nodes(struct Node **nodes,
+                       int max_nodes,
+                       int num_nodes,
+                       struct Node *current_node)
+{
+    if (num_nodes + 2 > max_nodes)
+    {
+        fprintf(stderr, "Not enough memory to allocate the child nodes\n");
+        exit(EXIT_FAILURE);
+    }
+    // allocate the right and left child nodes for the current node
+    struct Node *left_node = (struct Node *)malloc(sizeof(struct Node));
+    current_node->left_child_id = left_node->id = num_nodes;
+    nodes[num_nodes] = left_node;
+    num_nodes += 1;
+
+    struct Node *right_node = (struct Node *)malloc(sizeof(struct Node));
+    current_node->right_child_id = right_node->id = num_nodes;
+    nodes[num_nodes] = right_node;
+}
+
+void save_normal_vector(struct Node *node, double *normal, int vec_len)
+{
+    // allocate memory for the normal vector
+    node->normal = (double *)malloc(vec_len * sizeof(double));
+    for (int i = 0; i < vec_len; i++)
+    {
+        node->normal[i] = normal[i];
+    }
+}
+
+inline int count_true_in_arr(bool arr[], int size)
+{
+    int count = 0;
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i])
+        {
+            count++;
+        }
+    }
+    return count;
+}
+
+/*
+Python implementation:
+
+    mask = dist <= node.intercept
+    partial_importance = np.abs(
+        np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
+            np.float64
+        )
+    )
+    cumul_normals += partial_importance
+    partial_importance *= node_size
+    l_cumul_importance = cumul_importance + partial_importance / (
+        len(subset_ids[mask]) + 1
+    )
+    r_cumul_importance = cumul_importance + partial_importance / (
+        len(subset_ids[~mask]) + 1
+    )
+*/
+
+/**
+ * @brief Update the importances and normals of the nodes
+ *
+ * @param mask_len The length of the boolean mask array, its length is equal to the number
+ *      of samples in the curent node
+ */
+void update_importances_and_normals(struct Node *node,
+                                    int vec_len,
+                                    double *cumul_normal,
+                                    double *cumul_importance,
+                                    double *l_cumul_importance,
+                                    double *r_cumul_importance,
+                                    bool *mask,
+                                    int mask_len)
+{
+    for (int i = 0; i < vec_len; i++)
+    {
+        double partial_importance = fabs(node->normal[i]);
+        cumul_normal[i] += partial_importance;
+        partial_importance *= mask_len; // mask_len is the same as node_size
+        int true_count = count_true_in_arr(mask, mask_len);
+        l_cumul_importance[i] = cumul_importance[i] + partial_importance / (true_count + 1);
+        r_cumul_importance[i] = cumul_importance[i] + partial_importance / (mask_len - true_count + 1);
     }
 }

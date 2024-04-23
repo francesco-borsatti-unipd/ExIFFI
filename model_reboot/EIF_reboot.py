@@ -19,9 +19,11 @@ from c_functions.c_signatures import (
     copy_alloc,
     get_leaf_ids,
     c_factor,
-    get_corrected_depths,
     save_leaf_data,
     save_train_data,
+    alloc_child_nodes,
+    save_normal_vector,
+    update_importances_and_normals,
 )
 
 
@@ -171,27 +173,25 @@ class ExtendedTree:
 
             node_size = subset_ids.shape[0]
 
-            if node_size <= self.min_sample or depth >= self.max_depth:
+            if depth >= self.max_depth or node_size <= self.min_sample:
                 # reached a leaf node
-                node.is_leaf = True  # C
                 save_leaf_data(
                     node,
                     c_factor(node_size) + depth + 1,
                     cumul_normals,
                     cumul_importance,
-                )  # C
-
+                )
                 return
             else:
-                node.is_leaf = False  # C
-                node.leaf_data = None  # C
+                node.is_leaf = False
+                node.leaf_data = None
 
             # --- This implementation reduces the difference in the versions ---
-            # node.normal = copy_alloc(
-            #     old_make_rand_vector(self.d - self.locked_dims, self.d)
+            # save_normal_vector(
+            #     node, old_make_rand_vector(self.d - self.locked_dims, self.d)
             # )
-            node.normal = copy_alloc(
-                make_rand_vector(self.d - self.locked_dims, self.d)
+            save_normal_vector(
+                node, make_rand_vector(self.d - self.locked_dims, self.d)
             )
 
             # --- This implementation reduces the difference in the versions ---
@@ -201,54 +201,47 @@ class ExtendedTree:
             #         np.float64
             #     ),
             # )
-            dist = dot_broadcast(np.ascontiguousarray(X[subset_ids]), node.normal)
+            dist = dot_broadcast(X[subset_ids], node.normal)
 
             node.intercept = make_random_intercept(dist)
-
-            ###############
-            # NOTE: CONVERT THIS IN C
             mask = dist <= node.intercept
-            partial_importance = np.abs(
-                np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
-                    np.float64
-                )
-            )
-            cumul_normals += partial_importance
-            partial_importance *= node_size
-            l_cumul_importance = cumul_importance + partial_importance / (
-                len(subset_ids[mask]) + 1
-            )
-            r_cumul_importance = cumul_importance + partial_importance / (
-                len(subset_ids[~mask]) + 1
-            )
-            ###############
 
-            # LEFT
-            left_node = Node()
-            node.left_child_id = left_node.id = self.num_nodes
-            self.num_nodes += 1
-            self.nodes[node.left_child_id] = c.pointer(left_node)
+            # -- This implementation reduces the difference in the versions --
+            # partial_importance = np.abs(
+            #     np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
+            #         np.float64
+            #     )
+            # )
+            # cumul_normals += partial_importance
+            # partial_importance *= node_size
+            # s = np.sum(mask)
+            # l_cumul_importance = cumul_importance + partial_importance / (s + 1)
+            # r_cumul_importance = cumul_importance + partial_importance / (
+            #     len(mask) - s + 1
+            # )
 
-            # RIGHT
-            right_node = Node()
-            node.right_child_id = right_node.id = self.num_nodes
-            self.num_nodes += 1
-            self.nodes[node.right_child_id] = c.pointer(right_node)
+            l_cumul_importance, r_cumul_importance = update_importances_and_normals(
+                node,
+                self.d,
+                cumul_normals,
+                cumul_importance,
+                mask,
+            )
 
-            if self.num_nodes >= self.max_nodes:
-                raise ValueError("Max number of nodes reached")
+            alloc_child_nodes(self.nodes, self.max_nodes, self.num_nodes, node)
+            self.num_nodes += 2
 
             depth += 1
 
             create_split(
-                right_node,
+                self.nodes[node.right_child_id].contents,
                 subset_ids[~mask],
                 depth,
                 r_cumul_importance,
                 cumul_normals.copy(),
             )
             create_split(
-                left_node,
+                self.nodes[node.left_child_id].contents,
                 subset_ids[mask],
                 depth,
                 l_cumul_importance,
@@ -463,9 +456,13 @@ class ExtendedIsolationForest:
         importances = np.zeros(X.shape)
         normals = np.zeros(X.shape)
         for i, tree in enumerate(self.trees):
-            importance, normal = tree.importances(ids[i])
-            importances += importance
-            normals += normal
+            # importance, normal = tree.importances(ids[i])
+            # importances += importance
+            # normals += normal
+
+            importances += tree.cumul_importances[ids[i]]
+            normals += tree.cumul_normals[ids[i]]
+
         return importances / self.n_estimators, normals / self.n_estimators
 
     def global_importances(self, X: np.ndarray, p: float = 0.1) -> np.ndarray:
