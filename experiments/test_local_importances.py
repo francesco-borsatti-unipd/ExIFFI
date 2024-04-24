@@ -37,6 +37,8 @@ parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter o
 parser.add_argument('--n_runs', type=int, default=10, help='Number of runs of Local Feature importance computation')
 parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
 parser.add_argument('--n_quantiles', type=int, default=70, help='Number of quantiles to use in ACME interpretation')
+parser.add_argument('--n_anomalies', type=int, default=100, help='Number of anomalies on which to compute the importance scores with KernelSHAP')
+parser.add_argument('--background', type=float, default=0.1, help='Background percentage for KernelSHAP interpretation')
 
 # Parse the arguments
 args = parser.parse_args()
@@ -65,6 +67,8 @@ eta = args.eta
 n_runs = args.n_runs 
 downsample = args.downsample
 n_quantiles = args.n_quantiles
+n_anomalies = args.n_anomalies
+background = args.background
 
 # Load dataset
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
@@ -187,8 +191,11 @@ if not os.path.exists(path_experiment_model_interpretation_labels_scenario):
 
 #Compute local importances
 if interpretation == "ACME":
-    imp_mat= compute_local_importances_ACME(I=I, dataset=dataset, model=model, p=contamination, n_quantiles=n_quantiles)
+    imp_mat = compute_local_importances_ACME(I=I, dataset=dataset, model=model, p=contamination, n_quantiles=n_quantiles)
     #import ipdb; ipdb.set_trace()
+    save_element(imp_mat, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
+elif interpretation == "KernelSHAP":
+    imp_mat = compute_local_importances_kernelSHAP(I=I, dataset=dataset, background=background, pre_process=pre_process, scenario=scenario, n_anomalies=n_anomalies)
     save_element(imp_mat, path_experiment_model_interpretation_imp_mat_scenario, filetype="csv.gz")
 else:
     imp_mat,labels = experiment_local_importances(I, dataset, p=contamination, interpretation=interpretation, n_runs=n_runs)    

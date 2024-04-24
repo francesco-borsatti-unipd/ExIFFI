@@ -197,7 +197,9 @@ else:
 
 # feature selection → direct and inverse feature selection
 most_recent_file = get_most_recent_file(path_experiment_feats)
-matrix = open_element(most_recent_file,filetype="csv.gz").values
+matrix = open_element(most_recent_file,filetype="csv.gz")
+if matrix.isinstance(pd.DataFrame):
+    matrix=matrix.values 
 # Only first 15 features
 #feat_order = np.argsort(matrix.mean(axis=0))[-15:]
 # All features 

@@ -157,7 +157,11 @@ def score_plot(dataset: Type[Dataset],
     """
    # Compute the plt_data with the compute_plt_data function
     col_names = dataset.feature_names
-    plt_data = compute_plt_data(importances_file)
+    try:
+        plt_data = compute_plt_data(importances_file)
+    except:
+        plt_data = compute_plt_data(importances_file,filetype="csv.gz")
+
 
     t = time.localtime()
     current_time = time.strftime("%d-%m-%Y_%H-%M-%S", t)
@@ -171,14 +175,17 @@ def score_plot(dataset: Type[Dataset],
 
     patterns=[None,'!','@','#','$','^','&','*','°','(',')','-','_','+','=','[',']','{','}',
     '|',';',':',',','.','<','>','/','?','`','~','\\','!!','@@','##','$$','^^','&&','**','°°','((']
-    imp_vals=plt_data['Importances']
+    
+    #imp_vals=plt_data['Importances']
+    imp_vals=plt_data['Normalized_imp']
     feat_imp=pd.DataFrame({'Global Importance': np.round(imp_vals,3),
                         'Feature': plt_data['feat_order'],
                         'std': plt_data['std']
                         })
+
     
-    if len(feat_imp)>15:
-        feat_imp=feat_imp.iloc[-15:].reset_index(drop=True)
+    if len(feat_imp)>8:
+        feat_imp=feat_imp.iloc[-8:].reset_index(drop=True)
     
     dim=feat_imp.shape[0]
 
@@ -188,17 +195,27 @@ def score_plot(dataset: Type[Dataset],
     plt.rcParams['axes.facecolor'] = '#F2F2F2'
     plt.rcParams['axes.axisbelow'] = True
     color = plt.cm.get_cmap('tab20',number_colours).colors
-    ax1=feat_imp.plot(y='Global Importance',x='Feature',kind="barh",color=color[feat_imp['Feature']%number_colours],xerr='std',
-                    capsize=5, alpha=1,legend=False,
-                    hatch=[patterns[i//number_colours] for i in feat_imp['Feature']])
-    xlim=np.min(imp_vals)-0.05*np.min(imp_vals)
+    #import ipdb; ipdb.set_trace()
+
+    colors=["#000000","#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
+
+    # ax1=feat_imp.plot(y='Global Importance',x='Feature',kind="barh",color=color[feat_imp['Feature']%number_colours],
+    #                 capsize=5, alpha=1,legend=False,
+    #                 hatch=[patterns[i//number_colours] for i in feat_imp['Feature']])
+
+    ax1=feat_imp.plot(y='Global Importance',x='Feature',kind="barh",color=colors,
+                    capsize=5, alpha=1,legend=False)
+    
+    #xlim=np.min(imp_vals)-0.05*np.min(imp_vals)
+    xlim=np.min(imp_vals)
 
     ax1.grid(alpha=0.7)
     ax2 = ax1.twinx()
     # Add labels on the right side of the bars
     values=[]
     for i, v in enumerate(feat_imp['Global Importance']):
-        values.append(str(v) + ' +- ' + str(np.round(feat_imp['std'][i],2)))
+        #values.append(str(v) + ' +- ' + str(np.round(feat_imp['std'][i],2)))
+        values.append(str(v))
     
     ax2.set_ylim(ax1.get_ylim())
     ax2.set_yticks(range(dim))
@@ -307,7 +324,7 @@ def plot_feature_selection(
         if rotation:
             plt.xticks(range(dim),range(dim,0,-1),rotation=45)
         else:
-            plt.xticks(range(dim),range(dim,0,-1))    
+            plt.xticks(range(dim),range(dim,0,-1))       
     
     if box_loc is None:
        box_loc = (len(precision.direct)/2,change_box_loc)

@@ -293,7 +293,7 @@ def compute_imp_time_kernelSHAP(I: Type[ExtendedIsolationForest],
     anomalies=dataset.X_test[np.where(y_pred==1)[0]]
     anomaly=anomalies[np.random.randint(0,anomalies.shape[0],1)[0],:]
 
-    print('Computing ACME Local Importances (for a single anomaly)')
+    print('Computing KernelSHAP Local Importances (for a single anomaly)')
     print('#'*50)
 
     # Downsample the dataset to the background size
@@ -318,6 +318,73 @@ def compute_imp_time_kernelSHAP(I: Type[ExtendedIsolationForest],
     shap_time = time.time()-start_time
 
     return shap_time
+
+def compute_local_importances_kernelSHAP(I: Type[ExtendedIsolationForest],
+                                 dataset: Type[Dataset],
+                                 background:float=0.1,
+                                 pre_process:float=False,
+                                 scenario:int=2,
+                                 n_anomalies:int=100) -> float: 
+    
+    """
+    Compute the local importance score for a certain number of anomalies with KernelSHAP method 
+
+    Args:
+        I (Type[ExtendedIsolationForest]): The AD model.
+        dataset (Type[Dataset]): Input dataset.
+        background (float): The percentage of the dataset to use as background. Defaults to 0.1.
+        p (float): The percentage of outliers in the dataset (i.e. contamination factor). Defaults to 0.1.
+        pre_process (bool): Whether to pre process the dataset after computing the downsampled version according to the background. Defaults to False.
+        scenario (int): The scenario of the experiment. Defaults to 2.
+        n_anomalies (int): Number of anomalies on which to compute the importance scores 
+    
+    Returns:
+        The time to compute the local feature importances for a single anomaly 
+    """
+
+    def EIF_score_function_shap(data):
+        return I.predict(data)
+
+    I.fit(dataset.X_train)
+
+    # y_pred=I._predict(dataset.X_test,p).astype(int)
+    # anomalies=dataset.X_test[np.where(y_pred==1)[0]]
+    # anomaly=anomalies[np.random.randint(0,anomalies.shape[0],1)[0],:]
+
+    print(f'Computing KernelSHAP importance scores for the {n_anomalies} most anomalous points')
+    print('#'*50)
+
+    # Downsample the dataset to the background size
+    dataset.downsample(max_samples=int(background*dataset.X.shape[0]))
+
+    dataset.split_dataset(train_size=1-dataset.perc_outliers,contamination=0)
+
+    if pre_process and scenario==2:
+        dataset.initialize_test()
+        dataset.pre_process()
+    elif scenario==2 and not pre_process:
+        dataset.initialize_test()
+    elif scenario==1 and not pre_process:
+        dataset.initialize_train_test()
+
+    scores=EIF_score_function(dataset.X_test)
+    # Find the n_anomalies most anomalous points
+    anomalies_idx=np.argsort(scores)[:n_anomalies]
+    anomalies=dataset.X_test[anomalies_idx]
+
+    # Compute the shap_values for all the selected anomalies 
+    imp_mat=np.zeros((n_anomalies,dataset.X_test.shape[1]))
+    shap_explainer = shap.KernelExplainer(EIF_score_function_shap, dataset.X_test)
+    for i,anomaly in enumerate(anomalies):
+        imp_mat[i,:] = shap_explainer.shap_values(anomaly)
+
+        if i%5==0:
+            print("#"*50)
+            print(f'Computed importance score of {i} anomalies ')
+            print(imp_mat[i-5:i,:])
+            print("#"*50)
+
+    return imp_mat
 
 
 def compute_local_imp_time(I: Type[ExtendedIsolationForest],
@@ -525,22 +592,25 @@ def experiment_local_importances(I:Type[ExtendedIsolationForest],
     
     return cumul_imp,labels.astype(int)
 
-def compute_plt_data(imp_path:str) -> dict:
+def compute_plt_data(imp_path:str,
+                     filetype:str='npz') -> dict:
 
     """
     Compute statistics on the global feature importances obtained from experiment_global_importances. These will then be used in the score_plot method. 
 
     Args:
         imp_path (str): The path to the importances file.
+        filetype (str): The type of the importances file. Defaults to 'npz'.
     
     Returns:
         The dictionary containing the mean importances, the feature order, and the standard deviation of the importances.
     """
 
-    try:
+    if filetype=="npz":
         fi = np.load(imp_path)['element']
-    except:
-        print("Error: importances file should be npz")
+    elif filetype=="csv.gz":
+        fi=open_element(imp_path,filetype="csv.gz").values
+
     # Handle the case in which there are some np.nan in the fi array
     if np.isnan(fi).any():
         #Substitute the np.nan values with 0  
@@ -550,14 +620,20 @@ def compute_plt_data(imp_path:str) -> dict:
     else:
         mean_imp = np.mean(fi,axis=0)
         std_imp = np.std(fi,axis=0)
+
+    #(score - minscore)/(maxscore-minscore)
     
     feat_ordered = mean_imp.argsort()
     mean_ordered = mean_imp[feat_ordered]
     std_ordered = std_imp[feat_ordered]
+    normalize_mean_ordered = (mean_ordered - mean_ordered.min()) / (mean_ordered.max() - mean_ordered.min())
+
+    #import ipdb; ipdb.set_trace()
 
     plt_data={'Importances': mean_ordered,
-                'feat_order': feat_ordered,
-                'std': std_ordered}
+              'Normalized_imp': normalize_mean_ordered,
+              'feat_order': feat_ordered,
+               'std': std_ordered}
     return plt_data
     
 
