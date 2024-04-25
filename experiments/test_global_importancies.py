@@ -36,8 +36,8 @@ parser.add_argument('--downsample',type=bool,default=False, help='If set, downsa
 # Parse the arguments
 args = parser.parse_args()
 
-assert args.model in ["EIF+","C_EIF+"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
-assert args.interpretation in ["EXIFFI+", "C_EXIFFI+"], "Interpretation not recognized"
+assert args.model in ["EIF+","C_EIF+","IF"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
+assert args.interpretation in ["EXIFFI+", "C_EXIFFI+","DIFFI"], "Interpretation not recognized"
 if args.interpretation == "EXIFFI+":
     assert args.model=="EIF+", "EXIFFI+ can only be used with the EIF+ model"
 if args.interpretation == "C_EXIFFI+":

@@ -28,8 +28,8 @@ python $SCRIPT_PATH \
     --n_estimators 300 \
     --contamination 0.01 \
     --model "EIF+" \
-    --model_interpretation "EIF+" \
-    --interpretation "EXIFFI+" \
+    --model_interpretation "IF" \
+    --interpretation "DIFFI" \
     --scenario 2 \
     --pre_process 
 

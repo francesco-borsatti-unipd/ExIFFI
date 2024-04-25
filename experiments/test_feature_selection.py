@@ -198,12 +198,13 @@ else:
 # feature selection → direct and inverse feature selection
 most_recent_file = get_most_recent_file(path_experiment_feats)
 matrix = open_element(most_recent_file,filetype="csv.gz")
-if matrix.isinstance(pd.DataFrame):
-    matrix=matrix.values 
+# import ipdb; ipdb.set_trace()
+# if matrix.isinstance(pd.DataFrame):
+#     matrix=matrix.values 
 # Only first 15 features
 #feat_order = np.argsort(matrix.mean(axis=0))[-15:]
 # All features 
-feat_order = np.argsort(matrix.mean(axis=0))
+feat_order = np.argsort(matrix.values.mean(axis=0))
 Precisions = namedtuple("Precisions",["direct","inverse","dataset","model","value"])
 direct = feature_selection(I, dataset, feat_order, 10, inverse=False, random=False, scenario=scenario)
 inverse = feature_selection(I, dataset, feat_order, 10, inverse=True, random=False, scenario=scenario)
