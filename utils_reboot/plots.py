@@ -176,8 +176,8 @@ def score_plot(dataset: Type[Dataset],
     patterns=[None,'!','@','#','$','^','&','*','°','(',')','-','_','+','=','[',']','{','}',
     '|',';',':',',','.','<','>','/','?','`','~','\\','!!','@@','##','$$','^^','&&','**','°°','((']
     
-    #imp_vals=plt_data['Importances']
-    imp_vals=plt_data['Normalized_imp']
+    imp_vals=plt_data['Importances']
+    #imp_vals=plt_data['Normalized_imp']
     feat_imp=pd.DataFrame({'Global Importance': np.round(imp_vals,3),
                         'Feature': plt_data['feat_order'],
                         'std': plt_data['std']
