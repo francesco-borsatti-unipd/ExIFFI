@@ -118,7 +118,7 @@ if not os.path.exists(path):
 path_experiments = cwd +"/experiments/results/"+dataset.name+"/experiments"
 if not os.path.exists(path_experiments):
     os.makedirs(path_experiments)
-path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/imp_plots"
+path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/score_plots"
 if not os.path.exists(path_plots):
     os.makedirs(path_plots)
 
@@ -160,7 +160,7 @@ bars = compute_bars(dataset=dataset,importances_file=imp_path,filetype="csv.gz",
 save_element(bars,path_experiment_model_interpretation_bars_scenario,filetype="csv.gz")
 
 # plot global importances
-# most_recent_file = get_most_recent_file(path_experiment_model_interpretation_scenario)
-# bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
-# score_plot(dataset, most_recent_file, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
+#bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+score_plot(dataset, imp_path, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
 

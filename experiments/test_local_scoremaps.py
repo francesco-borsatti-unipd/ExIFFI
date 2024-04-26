@@ -40,6 +40,8 @@ parser.add_argument('--feature1',type=str,help='First feature of the pair to plo
 parser.add_argument('--feature2',type=str,help='Second feature of the pair to plot in the importance map')
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
 parser.add_argument('--downsample',type=bool,default=False, help='If set, downsample the dataset if it has more than 7500 samples')
+parser.add_argument('--only_positive',type=bool,default=False, help='If set, plot only positive values in the grid of points used for the scoremap')
+parser.add_argument("--factor", type=float, default=3, help="Factor used for the computation of the grid map")
 
 # Parse the arguments
 args = parser.parse_args()
@@ -61,6 +63,8 @@ feature1 = args.feature1
 feature2 = args.feature2
 eta = args.eta
 downsample = args.downsample
+only_positive = args.only_positive
+factor = args.factor
 
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
@@ -145,7 +149,7 @@ print('#'*50)
 if interpretation=="DIFFI":
     importance_map(dataset,I,feats_plot=feats_plot,path_plot=path_plots,col_names=dataset.feature_names,interpretation=interpretation,scenario=scenario,contamination=contamination,isdiffi=True)
 else:
-    importance_map(dataset,I,feats_plot=feats_plot,path_plot=path_plots,col_names=dataset.feature_names,interpretation=interpretation,scenario=scenario,contamination=contamination)
+    importance_map(dataset=dataset,model=I,factor=factor,feats_plot=feats_plot,path_plot=path_plots,col_names=dataset.feature_names,interpretation=interpretation,scenario=scenario,contamination=contamination,only_positive=only_positive)
 
 print(f'Local Scoremap produced and saved in: {path_plots}')
 print('#'*50)

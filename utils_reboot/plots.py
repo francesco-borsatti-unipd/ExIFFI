@@ -447,7 +447,8 @@ def importance_map(dataset: Type[Dataset],
                    isdiffi: Optional[bool] = False,
                    scenario: Optional[int] = 2,
                    interpretation: Optional[str] = "EXIFFI+",
-                   contamination: float = 0.1
+                   contamination: float = 0.1,
+                   only_positive: bool = False
                    ) -> None:
         """
         Produce the Local Feature Importance Scoremap.   
@@ -483,6 +484,9 @@ def importance_map(dataset: Type[Dataset],
         mean = dataset.X_test.mean(axis = 0)
         mins = list(mins-(maxs-mins)*factor/10)
         maxs = list(maxs+(maxs-mins)*factor/10)
+        #import ipdb; ipdb.set_trace()
+        if only_positive:
+            mins=[-5,-5]
         xx, yy = np.meshgrid(np.linspace(mins[0], maxs[0], resolution), np.linspace(mins[1], maxs[1], resolution))
         mean = np.repeat(np.expand_dims(mean,0),len(xx)**2,axis = 0)
         mean[:,feats_plot[0]]=xx.reshape(len(xx)**2)
