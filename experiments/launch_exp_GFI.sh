@@ -3,7 +3,7 @@
 # Path to the Python script to execute
 SCRIPT_PATH="test_global_importancies.py"
 
-DATASETS="piade_s2_not_alarms"
+DATASETS="piade_s2_alarms_no_zeros"
 
 DATASET_PATH="../../datasets/data/PIADE/"
 
@@ -12,8 +12,10 @@ python $SCRIPT_PATH \
     --dataset_path $DATASET_PATH \
     --model "EIF+" \
     --interpretation "EXIFFI+" \
-    --scenario 1 \
+    --scenario 2 \
     --n_estimators 300 \
     --contamination 0.15 \
-    --n_runs 40
+    --n_runs 40 \
+    --pre_process \
+    --scaler_type 1
 

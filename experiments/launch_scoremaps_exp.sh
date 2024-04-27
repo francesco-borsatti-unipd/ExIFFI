@@ -2,7 +2,7 @@
 
 SCRIPT_PATH="test_local_scoremaps.py"
 
-DATASETS="piade_s2_alarms"
+DATASETS="piade_s2_alarms_no_zeros"
 
 DATASET_PATH="../../datasets/data/PIADE/"
 
@@ -33,10 +33,11 @@ DATASET_PATH="../../datasets/data/PIADE/"
         --contamination 0.15 \
         --model "EIF+" \
         --interpretation "EXIFFI+" \
-        --scenario 1 \
-        --feature1 "#changes" \
-        --feature2 "A_010" \
+        --scenario 2 \
+        --feature1 "%scheduled_downtime" \
+        --feature2 "%idle" \
         --downsample 1 \
-        --only_positive 1 \
-        --factor 3 
+        --factor 3 \
+        --pre_process 1 \
+        --scaler_type 4
 

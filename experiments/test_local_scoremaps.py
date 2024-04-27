@@ -36,6 +36,7 @@ parser.add_argument('--model', type=str, default="EIF+", help='Name of the inter
 parser.add_argument('--interpretation', type=str, default="EXIFFI+", help='Name of the interpretation model. Accepted values are: [EXIFFI+,EXIFFI,DIFFI,RandomForest]')
 parser.add_argument("--scenario", type=int, default=2, help="Scenario to run")
 parser.add_argument('--pre_process',type=bool,default=False, help='If set, preprocess the dataset')
+parser.add_argument("--scaler_type", type=int, default=1, help="Scaler type for pre_processing")
 parser.add_argument('--feature1',type=str,help='First feature of the pair to plot in the importance map')
 parser.add_argument('--feature2',type=str,help='Second feature of the pair to plot in the importance map')
 parser.add_argument("--eta", type=float, default=1.5, help="eta hyperparameter of EIF+")
@@ -65,6 +66,7 @@ eta = args.eta
 downsample = args.downsample
 only_positive = args.only_positive
 factor = args.factor
+scaler_type = args.scaler_type
 
 dataset = Dataset(dataset_name, path = dataset_path,feature_names_filepath='../../datasets/data/')
 dataset.drop_duplicates()
@@ -87,7 +89,7 @@ if pre_process:
     print("#"*50)
     print("Preprocessing the dataset...")
     print("#"*50)
-    dataset.pre_process()
+    dataset.pre_process(scaler_type=scaler_type)
 else:
     print("#"*50)
     print("Dataset not preprocessed")

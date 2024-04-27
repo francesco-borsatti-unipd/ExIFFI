@@ -282,7 +282,7 @@ class Dataset:
             self.X_train[i] = self.X[index]
             self.y_train[i] = self.y[index]
 
-    def pre_process(self) -> None:
+    def pre_process(self,scaler_type:int=1) -> None:
 
         """
         Normalize the data using `StansardScaler()` from `sklearn.preprocessing`.
@@ -300,7 +300,14 @@ class Dataset:
         if self.X_test is None:
             self.initialize_test()
 
-        scaler = StandardScaler()
+        if scaler_type==1:
+            scaler = StandardScaler()
+        elif scaler_type==2:
+            scaler = MinMaxScaler()
+        elif scaler_type==3:
+            scaler = MaxAbsScaler()
+        elif scaler_type==4:
+            scaler = RobustScaler()
         
         self.X_train=scaler.fit_transform(self.X_train)
         self.X_test=scaler.transform(self.X_test)
