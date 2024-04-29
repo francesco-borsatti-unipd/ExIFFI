@@ -245,7 +245,7 @@ def plot_feature_selection(
         precision_file: str,
         plot_path:str,
         precision_file_random:Optional[str]=None,
-        color:int=0,
+        color:int=3,
         model:Optional[str]=None,
         eval_model:Optional[str]='EIF+',
         interpretation:Optional[str]=None,
@@ -281,7 +281,7 @@ def plot_feature_selection(
 
     """
     
-    colors = ["tab:red","tab:gray","tab:orange","tab:green","tab:blue","tab:olive",'tab:brown']
+    colors = ["tab:orange","tab:red","tab:orange","tab:green","tab:blue","tab:olive",'tab:brown']
     if model is None:
         model = ""
     #Precisions = namedtuple("Precisions",["direct","inverse","dataset","model","value"])
@@ -311,7 +311,7 @@ def plot_feature_selection(
         plt.plot(median_random,label="random",c=colors[3],alpha=0.5,marker="o")
 
     plt.plot(median_direct,label="direct",c=colors[4],alpha=0.5,marker="o")#markers[c])
-    plt.plot(median_inverse,label="inverse",c=colors[color],alpha=0.5,marker="o")
+    plt.plot(median_inverse,label="inverse",c=colors[1],alpha=0.5,marker="o")
     
     plt.xlabel("Number of Features",fontsize = 20)
     plt.ylabel("Average Precision",fontsize = 20)
@@ -340,7 +340,7 @@ def plot_feature_selection(
 
     plt.fill_between(np.arange(dim),five_direct, ninetyfive_direct,alpha=0.1, color="k")
     plt.fill_between(np.arange(dim),five_inverse, ninetyfive_inverse,alpha=0.1, color="k")
-    plt.fill_between(np.arange(dim),median_direct, median_inverse,alpha=0.7, color=colors[color])
+    plt.fill_between(np.arange(dim),median_direct, median_inverse,alpha=0.7, color="coral")
     plt.legend(bbox_to_anchor = (1.05,0.95),loc="upper left")
     plt.grid(visible=True, alpha=0.5, which='major', color='gray', linestyle='-')
 
