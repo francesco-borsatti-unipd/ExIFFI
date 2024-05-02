@@ -137,12 +137,12 @@ class ExtendedTree:
 
     def extend_tree(self, node_id: int, X: npt.NDArray, depth: int) -> None:
         """
-        Extend the tree to the given node.
+        Extend the tree from the given node onwards.
 
         Args:
-            node_id: Node id
+            node_id: Starting node id
             X: Input dataset
-            depth: Depth of the node
+            depth: Depth of the starting node
 
         Returns:
             The method extends the tree and does not return any value.
@@ -253,9 +253,11 @@ class ExtendedTree:
         create_split(
             root_node, subset_ids, depth, np.zeros(X.shape[1]), np.zeros(X.shape[1])
         )
-        # this is slower, but saves a lot of memory
+        # re-allocating the array is a bit slower than leaving it as-is, but it does save memory
         self.nodes = (c.POINTER(Node) * self.num_nodes)(*self.nodes[: self.num_nodes])
 
+        # it would be more memory-efficient to read the data from the nodes directly instead of storing it
+        # in new arrays as tree attributes, but it is a bit faster to then retrieve the data from the arrays
         self.corrected_depths, self.cumul_importances, self.cumul_normals = (
             save_train_data(self.nodes, self.d)
         )

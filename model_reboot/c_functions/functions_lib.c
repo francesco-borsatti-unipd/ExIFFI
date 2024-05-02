@@ -37,16 +37,6 @@ void dot_broadcast(double *a, double *b, int shape0, int shape1, double *res)
     }
 }
 
-double *copy_alloc(double *a, int len)
-{
-    double *res = (double *)malloc(len * sizeof(double));
-    for (int i = 0; i < len; i++)
-    {
-        res[i] = a[i];
-    }
-    return res;
-}
-
 inline double dot(double *a, double *b, int len)
 {
     double result = 0;
@@ -214,25 +204,6 @@ inline int count_true_in_arr(bool arr[], int size)
     }
     return count;
 }
-
-/*
-Python implementation:
-
-    mask = dist <= node.intercept
-    partial_importance = np.abs(
-        np.ctypeslib.as_array(node.normal, shape=(X.shape[1],)).astype(
-            np.float64
-        )
-    )
-    cumul_normals += partial_importance
-    partial_importance *= node_size
-    l_cumul_importance = cumul_importance + partial_importance / (
-        len(subset_ids[mask]) + 1
-    )
-    r_cumul_importance = cumul_importance + partial_importance / (
-        len(subset_ids[~mask]) + 1
-    )
-*/
 
 /**
  * @brief Update the importances and normals of the nodes
