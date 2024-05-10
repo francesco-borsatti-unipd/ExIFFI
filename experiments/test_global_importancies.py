@@ -153,16 +153,15 @@ if not os.path.exists(path_experiment_model_interpretation_bars):
 path_experiment_model_interpretation_bars_scenario = path_experiment_model_interpretation_bars + "/scenario_"+str(scenario)
 if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
     os.makedirs(path_experiment_model_interpretation_bars_scenario)
+
     
 ##################################
 ##################################
 ##################################
-
-imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
-path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/GFI_plots"
-bar_plot(dataset, imp_path, filetype="csv.gz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
-
-quit()
+# imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
+# path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/GFI_plots"
+# bar_plot(dataset, imp_path, filetype="csv.gz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+# quit()
 ##################################
 ##################################
 ##################################
