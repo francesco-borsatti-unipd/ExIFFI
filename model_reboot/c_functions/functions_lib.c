@@ -222,6 +222,9 @@ void update_importances_and_normals(struct Node *node,
 {
     for (int i = 0; i < vec_len; i++)
     {
+        // the importance is given by the abs(normal),
+        // but we also account for the number of
+        // importance = abs(normal) * total_num_samples / num_samples_in_split
         double partial_importance = fabs(node->normal[i]);
         cumul_normal[i] += partial_importance;
         partial_importance *= mask_len; // mask_len is the same as node_size
@@ -229,4 +232,94 @@ void update_importances_and_normals(struct Node *node,
         l_cumul_importance[i] = cumul_importance[i] + partial_importance / (true_count + 1);
         r_cumul_importance[i] = cumul_importance[i] + partial_importance / (mask_len - true_count + 1);
     }
+}
+
+void get_centroid(int vec_len, double *samples, int num_samples, double *centroid)
+{
+    for (int i = 0; i < vec_len; i++)
+    {
+        centroid[i] = 0;
+        for (int j = 0; j < num_samples; j++)
+        {
+            centroid[i] += samples[j * vec_len + i];
+        }
+        centroid[i] /= num_samples;
+    }
+}
+
+void print_buffer(double *buffer, int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        printf("%f ", buffer[i]);
+    }
+    printf("\n");
+}
+
+// NOTE, TO OPTIMIZE:
+//  - left_subset_len should be equal to the number of true values in the mask
+//  - right_subset_len should be equal to the number of false values in the mask
+//  - left_subset_samples should be accessed from the dataset, so we don't need to pass it
+//  - right_subset_samples should be accessed from the dataset, so we don't need to pass it
+void update_importances_and_normals_centroid(struct Node *node,
+                                             int vec_len,
+                                             double *cumul_normal,
+                                             double *cumul_importance,
+                                             double *l_cumul_importance,
+                                             double *r_cumul_importance,
+                                             bool *mask,
+                                             int mask_len,
+                                             double *dataset, // flattened
+                                             int dataset_len,
+                                             double *left_subset_samples,
+                                             int left_subset_len,
+                                             double *right_subset_samples,
+                                             int right_subset_len)
+{
+    // the importance is given by the abs(distance between the centroids),
+    // where the distance is the vector connecting the two centroids,
+    // and the centroids are the mean of the left and right subset samples,
+    // but if either the left or right subset is empty, use the normal as the distance
+    double *centroid_distance = (double *)malloc(vec_len * sizeof(double));
+    
+    if (left_subset_len == 0 || right_subset_len == 0)
+    { 
+        for (int i = 0; i < vec_len; i++)
+        {
+            centroid_distance[i] = node->normal[i];
+        }
+    }
+    else
+    {
+        // compute the first centroid as the sum of the left subset samples
+        double *centroid1 = (double *)malloc(vec_len * sizeof(double));
+        get_centroid(vec_len, left_subset_samples, left_subset_len, centroid1);
+        // compute the second centroid as the sum of the right subset samples
+        double *centroid2 = (double *)malloc(vec_len * sizeof(double));
+        get_centroid(vec_len, right_subset_samples, right_subset_len, centroid2);
+        // compute the distance between the centroids
+        for (int i = 0; i < vec_len; i++)
+        {
+            centroid_distance[i] = centroid1[i] - centroid2[i];
+        }
+        free(centroid1);
+        free(centroid2);
+    }
+
+    for (int i = 0; i < vec_len; i++)
+    {
+        // distance between the centroids
+        double partial_importance = fabs(centroid_distance[i]);
+
+        // but we also account for the number of
+        // importance = abs(importance direction) * total_num_samples / num_samples_in_split
+
+        cumul_normal[i] += partial_importance;
+        partial_importance *= mask_len; // mask_len is the same as node_size
+        int true_count = count_true_in_arr(mask, mask_len);
+        l_cumul_importance[i] = cumul_importance[i] + partial_importance / (true_count + 1);
+        r_cumul_importance[i] = cumul_importance[i] + partial_importance / (mask_len - true_count + 1);
+    }
+
+    free(centroid_distance);
 }

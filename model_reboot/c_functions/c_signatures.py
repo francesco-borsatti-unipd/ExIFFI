@@ -302,6 +302,25 @@ c_update_importances_and_normals.argtypes = [
 ]
 c_update_importances_and_normals.restype = None
 
+c_update_importances_and_normals_centroid = lib.update_importances_and_normals_centroid
+c_update_importances_and_normals_centroid.argtypes = [
+    c.POINTER(Node),
+    c.c_int,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"),
+    np.ctypeslib.ndpointer(dtype=np.bool_, ndim=1, flags="C_CONTIGUOUS"),
+    c.c_int,
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # flattened X dataset
+    c.c_int, # n_samples in the dataset
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # flattened left subset samples
+    c.c_int, # n_samples in the left subset
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags="C_CONTIGUOUS"), # flattened right subset samples
+    c.c_int # n_samples in the right subset
+]
+c_update_importances_and_normals_centroid.restype = None
+
 
 def update_importances_and_normals(
     node,
@@ -309,6 +328,9 @@ def update_importances_and_normals(
     cumul_normal,
     cumul_importance,
     mask,
+    use_centroid_importance,
+    dataset,
+    subset_ids,
 ):
     """
     Compute the cumulative sum of the importances and the sum of the normal vectors of the
@@ -326,14 +348,33 @@ def update_importances_and_normals(
     """
     l_cumul_importance = np.zeros(d)
     r_cumul_importance = np.zeros(d)
-    c_update_importances_and_normals(
-        node,
-        d,
-        cumul_normal,
-        cumul_importance,
-        l_cumul_importance,
-        r_cumul_importance,
-        mask,
-        mask.shape[0],
-    )
+
+    if use_centroid_importance:
+        c_update_importances_and_normals_centroid(
+            node,
+            d,
+            cumul_normal,
+            cumul_importance,
+            l_cumul_importance,
+            r_cumul_importance,
+            mask,
+            mask.shape[0],
+            dataset.flatten(),
+            dataset.shape[0],
+            dataset[subset_ids[mask]].flatten().astype(np.float64),
+            len(subset_ids[mask]),
+            dataset[subset_ids[~mask]].flatten().astype(np.float64),
+            len(subset_ids[~mask]),
+        )
+    else:
+        c_update_importances_and_normals(
+            node,
+            d,
+            cumul_normal,
+            cumul_importance,
+            l_cumul_importance,
+            r_cumul_importance,
+            mask,
+            mask.shape[0],
+        )
     return l_cumul_importance, r_cumul_importance

@@ -107,6 +107,7 @@ class ExtendedTree:
         plus: bool = True,
         max_nodes: int = 10000,
         eta: float = 1.5,
+        use_centroid_importance: bool = False,
     ):
 
         if locked_dims >= d:
@@ -121,6 +122,7 @@ class ExtendedTree:
         self.max_nodes = max_nodes
         self.eta = eta
         self.num_nodes = 0
+        self.use_centroid_importance = use_centroid_importance
 
     def fit(self, X: np.ndarray) -> None:
         """
@@ -225,6 +227,9 @@ class ExtendedTree:
                 cumul_normals,
                 cumul_importance,
                 mask,
+                self.use_centroid_importance,
+                X,
+                subset_ids,
             )
 
             alloc_child_nodes(self.nodes, self.max_nodes, self.num_nodes, node)
@@ -343,6 +348,7 @@ class ExtendedIsolationForest:
         max_depth: Union[str, int] = "auto",
         max_samples: Union[str, int] = "auto",
         eta: float = 1.5,
+        use_centroid_importance: bool = False,
     ):
         self.n_estimators = n_estimators
         self.max_samples = 256 if max_samples == "auto" else max_samples
@@ -352,6 +358,7 @@ class ExtendedIsolationForest:
         self.ids = None
         self.X = None
         self.eta = eta
+        self.use_centroid_importance = use_centroid_importance
 
     @property
     def avg_number_of_nodes(self):
@@ -384,6 +391,7 @@ class ExtendedIsolationForest:
                 locked_dims=locked_dims,
                 plus=self.plus,
                 eta=self.eta,
+                use_centroid_importance=self.use_centroid_importance,
             )
             for _ in range(self.n_estimators)
         ]
@@ -457,12 +465,13 @@ class ExtendedIsolationForest:
         importances = np.zeros(X.shape)
         normals = np.zeros(X.shape)
         for i, tree in enumerate(self.trees):
-            # importance, normal = tree.importances(ids[i])
-            # importances += importance
-            # normals += normal
+            
+            importance, normal = tree.importances(ids[i])
+            importances += importance
+            normals += normal
 
-            importances += tree.cumul_importances[ids[i]]
-            normals += tree.cumul_normals[ids[i]]
+            # importances += tree.cumul_importances[ids[i]]
+            # normals += tree.cumul_normals[ids[i]]
 
         return importances / self.n_estimators, normals / self.n_estimators
 
