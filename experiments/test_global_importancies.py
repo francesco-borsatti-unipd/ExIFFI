@@ -37,10 +37,10 @@ parser.add_argument('--downsample',type=bool,default=False, help='If set, downsa
 # Parse the arguments
 args = parser.parse_args()
 
-assert args.model in ["EIF+","C_EIF+","IF"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
+assert args.model in ["EIF+","C_EIF+","IF","EIF+centroid"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
 assert args.interpretation in ["EXIFFI+", "C_EXIFFI+","DIFFI"], "Interpretation not recognized"
 if args.interpretation == "EXIFFI+":
-    assert args.model=="EIF+", "EXIFFI+ can only be used with the EIF+ model"
+    assert args.model in ["EIF+", "EIF+centroid"], "EXIFFI+ can only be used with the EIF+ model"
 if args.interpretation == "C_EXIFFI+":
     assert args.model=="C_EIF+", "C_EXIFFI+ can only be used with the C_EIF+ model"
 
@@ -99,6 +99,8 @@ elif model == "EIF+":
 # For the moment EIF+ and C_EIF+ are the same model, modify here when we have the C implementation of ExtendedIsolationForest
 elif model == "C_EIF+":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+elif model == "EIF+centroid":
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, use_centroid_importance=True)
 
 os.chdir('../')
 cwd=os.getcwd()
@@ -152,6 +154,20 @@ path_experiment_model_interpretation_bars_scenario = path_experiment_model_inter
 if not os.path.exists(path_experiment_model_interpretation_bars_scenario):
     os.makedirs(path_experiment_model_interpretation_bars_scenario)
     
+##################################
+##################################
+##################################
+
+imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
+path_plots = cwd +"/experiments/results/"+dataset.name+"/plots/GFI_plots"
+bar_plot(dataset, imp_path, filetype="csv.gz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+
+quit()
+##################################
+##################################
+##################################
+
+
 #Compute global importances
 #full_importances,_ = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)    
 full_importances = experiment_global_importances(I, dataset, n_runs=n_runs, p=contamination, interpretation=interpretation)
@@ -164,6 +180,6 @@ save_element(bars,path_experiment_model_interpretation_bars_scenario,filetype="c
 
 # plot global importances
 imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
-#bar_plot(dataset, most_recent_file, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
+#bar_plot(dataset, imp_path, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
 score_plot(dataset, imp_path, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
 

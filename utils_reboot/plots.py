@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import os, ipdb
 import time
 from typing import Type, Optional, List
 
@@ -75,7 +75,7 @@ def bar_plot(dataset: Type[Dataset],
     color = plt.cm.get_cmap('tab20',number_colours).colors
     patterns=[None,'!','@','#','$','^','&','*','°','(',')','-','_','+','=','[',']','{','}',
     '|',';',':',',','.','<','>','/','?','`','~','\\','!!','@@','##','$$','^^','&&','**','°°','((']
-    importances_matrix = np.array([np.array(pd.Series(x).sort_values(ascending = False).index).T for x in importances])
+    importances_matrix = np.array([np.array(pd.Series(x).sort_values(ascending = False).index).T for x in importances.values]) # original
     dim=int(importances.shape[1])
 
     bars = [[(list(importances_matrix[:,j]).count(i)/len(importances_matrix))*100 for i in range(dim)] for j in range(dim)]

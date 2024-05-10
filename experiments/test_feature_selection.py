@@ -102,7 +102,7 @@ else:
 # ipdb.set_trace()
 
 assert model_interpretation in ["IF", "EIF", "EIF+"], "Model for Feature Order not recognized"
-assert model in ["IF","EIF", "EIF+"], "Evaluation Model not recognized"
+assert model in ["IF","EIF", "EIF+", "EIF+centroid"], "Evaluation Model not recognized"
 assert interpretation in ["EXIFFI+","EXIFFI", "DIFFI", "RandomForest", "KernelSHAP", "ACME"], "Interpretation not recognized"
 
 if interpretation == "DIFFI":
@@ -124,6 +124,8 @@ elif model == "EIF":
     I=ExtendedIsolationForest(0, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
 elif model == "EIF+":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
+elif model == "EIF+centroid":
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, use_centroid_importance=True)
 
 
 print('#'*50)
