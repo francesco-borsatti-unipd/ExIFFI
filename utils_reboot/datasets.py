@@ -16,6 +16,7 @@ import mat73
 import numpy as np
 import random 
 import pandas as pd
+from glob import glob
 
 from sklearn.model_selection import StratifiedShuffleSplit as SSS
 from sklearn.preprocessing import StandardScaler
@@ -97,7 +98,7 @@ class Dataset:
             The dataset is loaded in place.
         """
         try:
-            datapath = self.path + self.name + ".mat"
+            datapath = os.path.join(self.path, self.name + ".mat")
             try:
                 mat = loadmat(datapath)
             except NotImplementedError:
@@ -107,19 +108,16 @@ class Dataset:
             self.y = mat['y'].reshape(-1, 1).astype(float)
 
         except FileNotFoundError:
+            datapath = os.path.join(self.path, self.name + ".*")
+            datapath = glob(datapath)[0]
             try:
-                datapath = self.path + self.name + ".csv.gz"
                 T = pd.read_csv(datapath)
                 if 'Unnamed: 0' in T.columns:
                     T = pd.read_csv(datapath,index_col=0)
-                #import ipdb; ipdb.set_trace()
-                # if 'Unnamed: 0' in T.columns:
-                #     T = T.drop(columns=['Unnamed: 0'])
                 self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
                 self.y = T.loc[:,"Target"].to_numpy(float)
             except Exception as e:
                 try:
-                    datapath = self.path + self.name + ".csv.gz"
                     T = pd.read_csv(datapath)
                     
                     if 'Unnamed: 0' in T.columns:
@@ -127,32 +125,7 @@ class Dataset:
                     self.X = T['X'].to_numpy(dtype=float)
                     self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
                 except:
-                    raise Exception("The dataset name is not valid") from e
-
-
-        # except FileNotFoundError:
-        #     try:
-        #         datapath = self.path + self.name + ".csv"
-        #         T = pd.read_csv(datapath)
-        #         #import ipdb; ipdb.set_trace()
-        #         if 'Unnamed: 0' in T.columns:
-        #             T = T.drop(columns=['Unnamed: 0'])
-        #         self.X = T['X'].to_numpy(dtype=float)
-        #         self.y = T['y'].to_numpy(dtype=float).reshape(-1, 1)
-        #     except Exception as e:
-        #         try:
-        #             datapath = self.path + self.name + ".csv"
-        #             if self.name == "glass_DIFFI":
-        #                 T = pd.read_csv(datapath)
-        #             else:
-        #                 T = pd.read_csv(datapath,index_col=0)
-        #             if 'Unnamed: 0' in T.columns:
-        #                 T = T.drop(columns=['Unnamed: 0'])
-        #             self.X = T.loc[:,T.columns != "Target"].to_numpy(float)
-        #             self.y = T.loc[:,"Target"].to_numpy(float)
-        #         except:
-        #             raise Exception("The dataset name is not valid") from e
-
+                    raise Exception(f"The dataset name is not valid, dataset path: {datapath}") from e
 
     def __repr__(self) -> str:
         return f"[{self.name}][{self.shape}][{self.n_outliers}]"
