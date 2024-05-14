@@ -5,6 +5,7 @@ import os, sys, ctypes as c
 from typing import List, Union
 
 import numpy as np, numpy.typing as npt
+
 # from numba import njit, float64, int64, boolean
 # from numba.typed import List
 import ipdb
@@ -77,6 +78,32 @@ def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
     return vec / np.linalg.norm(vec)
 
 
+def make_random_distribution_aware_vector(dof, subset):
+    """
+    Take the subset of samples and compute the std along each dimension.
+    Then, to sample a random vector use the dimension-wise std as the std of the normal distribution
+    along each dimension.
+    """
+    std = np.std(subset, axis=0)
+    if np.all(std == 0):
+        vec = np.random.normal(loc=0.0, scale=1.0, size=dof).astype(np.float64)
+    else:
+        vec = np.random.normal(loc=0.0, scale=std, size=dof).astype(np.float64)
+
+    if dof != subset.shape[1]:
+        indexes = np.random.choice(np.arange(subset.shape[1]), dof, replace=False)
+        vec_ = np.zeros(subset.shape[1], dtype=np.float64)
+        vec_[indexes] = vec
+        vec = vec_
+
+    vec = vec / np.linalg.norm(vec)
+
+    if np.isnan(vec).any():
+        ipdb.set_trace()
+
+    return vec
+
+
 class ExtendedTree:
     """
     Class that represents an Isolation Tree in the Extended Isolation Forest model.
@@ -108,6 +135,7 @@ class ExtendedTree:
         max_nodes: int = 10000,
         eta: float = 1.5,
         use_centroid_importance: bool = False,
+        use_distribution_aware_splits: bool = False,
     ):
 
         if locked_dims >= d:
@@ -123,6 +151,7 @@ class ExtendedTree:
         self.eta = eta
         self.num_nodes = 0
         self.use_centroid_importance = use_centroid_importance
+        self.use_distribution_aware_splits = use_distribution_aware_splits
 
     def fit(self, X: np.ndarray) -> None:
         """
@@ -191,9 +220,14 @@ class ExtendedTree:
             # save_normal_vector(
             #     node, old_make_rand_vector(self.d - self.locked_dims, self.d)
             # )
-            save_normal_vector(
-                node, make_rand_vector(self.d - self.locked_dims, self.d)
-            )
+            if self.use_distribution_aware_splits:
+                rand_vec = make_random_distribution_aware_vector(
+                    self.d - self.locked_dims, X[subset_ids]
+                )
+            else:
+                rand_vec = make_rand_vector(self.d - self.locked_dims, self.d)
+
+            save_normal_vector(node, rand_vec)
 
             # --- This implementation reduces the difference in the versions ---
             # dist = np.dot(
@@ -349,6 +383,7 @@ class ExtendedIsolationForest:
         max_samples: Union[str, int] = "auto",
         eta: float = 1.5,
         use_centroid_importance: bool = False,
+        use_distribution_aware_splits: bool = False,
     ):
         self.n_estimators = n_estimators
         self.max_samples = 256 if max_samples == "auto" else max_samples
@@ -359,6 +394,7 @@ class ExtendedIsolationForest:
         self.X = None
         self.eta = eta
         self.use_centroid_importance = use_centroid_importance
+        self.use_distribution_aware_splits = use_distribution_aware_splits
 
     @property
     def avg_number_of_nodes(self):
@@ -392,6 +428,7 @@ class ExtendedIsolationForest:
                 plus=self.plus,
                 eta=self.eta,
                 use_centroid_importance=self.use_centroid_importance,
+                use_distribution_aware_splits=self.use_distribution_aware_splits,
             )
             for _ in range(self.n_estimators)
         ]
@@ -465,7 +502,7 @@ class ExtendedIsolationForest:
         importances = np.zeros(X.shape)
         normals = np.zeros(X.shape)
         for i, tree in enumerate(self.trees):
-            
+
             importance, normal = tree.importances(ids[i])
             importances += importance
             normals += normal
