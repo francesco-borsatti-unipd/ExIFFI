@@ -181,4 +181,3 @@ save_element(bars,path_experiment_model_interpretation_bars_scenario,filetype="c
 imp_path = get_most_recent_file(path_experiment_model_interpretation_imp_mat_scenario)
 #bar_plot(dataset, imp_path, filetype="npz", plot_path=path_plots, f=min(dataset.shape[1],6),show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
 score_plot(dataset, imp_path, plot_path=path_plots, show_plot=False, model=model, interpretation=interpretation, scenario=scenario)
-
