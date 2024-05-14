@@ -37,10 +37,10 @@ parser.add_argument('--downsample',type=bool,default=False, help='If set, downsa
 # Parse the arguments
 args = parser.parse_args()
 
-assert args.model in ["EIF+","C_EIF+","IF","EIF+centroid"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
+assert args.model in ["EIF+","C_EIF+","IF","EIF+_centroid","EIF+_distrib_split","EIF+_centroid_split"], "Model not recognized. Accepted values: ['EIF+','C_EIF+']"
 assert args.interpretation in ["EXIFFI+", "C_EXIFFI+","DIFFI"], "Interpretation not recognized"
 if args.interpretation == "EXIFFI+":
-    assert args.model in ["EIF+", "EIF+centroid"], "EXIFFI+ can only be used with the EIF+ model"
+    assert args.model in ["EIF+", "EIF+_centroid","EIF+_distrib_split","EIF+_centroid_split"], "EXIFFI+ can only be used with the EIF+ model"
 if args.interpretation == "C_EXIFFI+":
     assert args.model=="C_EIF+", "C_EXIFFI+ can only be used with the C_EIF+ model"
 
@@ -99,8 +99,12 @@ elif model == "EIF+":
 # For the moment EIF+ and C_EIF+ are the same model, modify here when we have the C implementation of ExtendedIsolationForest
 elif model == "C_EIF+":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples)
-elif model == "EIF+centroid":
+elif model == "EIF+_centroid":
     I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, use_centroid_importance=True)
+elif model == "EIF+_distrib_split":
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, use_distribution_aware_splits=True)
+elif model == "EIF+_centroid_split":
+    I=ExtendedIsolationForest(1, n_estimators=n_estimators, max_depth=max_depth, max_samples=max_samples, use_centroid_importance=True, use_distribution_aware_splits=True)
 
 os.chdir('../')
 cwd=os.getcwd()
