@@ -23,11 +23,11 @@ DATASET_PATH="../../datasets/data/PIADE/"
 python $SCRIPT_PATH \
     --dataset_name $DATASETS \
     --dataset_path $DATASET_PATH \
-    --model "EIF+centroid" \
+    --model "EIF+" \
     --interpretation "EXIFFI+" \
     --scenario 2 \
     --n_estimators 300 \
     --contamination 0.15 \
-    --n_runs 40 \
+    --n_runs 5 \
     --pre_process \
-    --scaler_type 1
+    --scaler_type 4

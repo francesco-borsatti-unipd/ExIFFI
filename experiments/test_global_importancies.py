@@ -43,7 +43,7 @@ if args.interpretation == "EXIFFI+":
     assert args.model in ["EIF+", "EIF+_centroid","EIF+_distrib_split","EIF+_centroid_split"], "EXIFFI+ can only be used with the EIF+ model"
 if args.interpretation == "C_EXIFFI+":
     assert args.model=="C_EIF+", "C_EXIFFI+ can only be used with the C_EIF+ model"
-
+"EIF+_centroid_split"
 
 # Access the arguments
 dataset_name = args.dataset_name
@@ -87,7 +87,6 @@ else:
     print("#"*50)
 
 #import ipdb; ipdb.set_trace()
-
 
 if model == "IF":
     if interpretation == "EXIFFI":
