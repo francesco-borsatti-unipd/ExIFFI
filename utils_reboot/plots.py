@@ -220,6 +220,8 @@ def score_plot(dataset: Type[Dataset],
     ax2.set_ylim(ax1.get_ylim())
     ax2.set_yticks(range(dim))
     ax2.set_yticklabels(values)
+    # ax1.set_xticks([])
+    ax1.set_xticklabels([])
     ax2.grid(alpha=0)
     plt.axvline(x=0, color=".5")
     ax1.set_xlabel('Importance Score',fontsize=20)
