@@ -54,23 +54,23 @@ def old_make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
 
 
 # @njit(cache=True)
-def make_rand_vector(df: int, dimensions: int) -> npt.NDArray[np.float64]:
+def make_rand_vector(dof: int, dimensions: int) -> npt.NDArray[np.float64]:
     """
     Generate a random unitary vector in the unit ball with a maximum number of dimensions.
     This vector will be successively used in the generation of the splitting hyperplanes.
 
     Args:
-        df: Degrees of freedom
+        dof: Degrees of freedom
         dimensions: number of dimensions of the feature space
 
     Returns:
         vec: Random unitary vector in the unit ball
 
     """
-    vec = np.random.normal(loc=0.0, scale=1.0, size=df).astype(np.float64)
+    vec = np.random.normal(loc=0.0, scale=1.0, size=dof).astype(np.float64)
 
-    if df != dimensions:
-        indexes = np.random.choice(np.arange(dimensions), df, replace=False)
+    if dof != dimensions:
+        indexes = np.random.choice(np.arange(dimensions), dof, replace=False)
         vec_ = np.zeros(dimensions, dtype=np.float64)
         vec_[indexes] = vec
         vec = vec_
@@ -85,10 +85,9 @@ def make_random_distribution_aware_vector(dof, subset):
     along each dimension.
     """
     std = np.std(subset, axis=0)
-    if np.all(std == 0):
-        vec = np.random.normal(loc=0.0, scale=1.0, size=dof).astype(np.float64)
-    else:
-        vec = np.random.normal(loc=0.0, scale=std, size=dof).astype(np.float64)
+    std = 1.0 if np.all(std == 0) else std
+
+    vec = np.random.normal(loc=0.0, scale=std, size=dof).astype(np.float64)
 
     if dof != subset.shape[1]:
         indexes = np.random.choice(np.arange(subset.shape[1]), dof, replace=False)
@@ -96,12 +95,7 @@ def make_random_distribution_aware_vector(dof, subset):
         vec_[indexes] = vec
         vec = vec_
 
-    vec = vec / np.linalg.norm(vec)
-
-    if np.isnan(vec).any():
-        ipdb.set_trace()
-
-    return vec
+    return vec / np.linalg.norm(vec)
 
 
 class ExtendedTree:
@@ -399,6 +393,15 @@ class ExtendedIsolationForest:
     @property
     def avg_number_of_nodes(self):
         return np.mean([T.num_nodes for T in self.trees])
+    
+    @property
+    def avg_number_of_leaves(self):
+        n_leaves = 0
+        for T in self.trees:
+            for i in range(T.num_nodes):
+                if T.nodes[i].contents.is_leaf:
+                    n_leaves += 1
+        return n_leaves/self.n_estimators
 
     def fit(self, X: np.ndarray, locked_dims: int | None = None) -> None:
         """
